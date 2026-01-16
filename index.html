@@ -10,7 +10,7 @@
 
     <style>
         /* ================= 基础样式 ================= */
-        body { margin: 0; padding: 0; display: flex; font-family: "Helvetica Neue", Helvetica, "PingFang TC", "Microsoft JhengHei", Arial, sans-serif; height: 100vh; overflow: hidden; color: #333; }
+        body { margin: 0; padding: 0; display: flex; font-family: "Helvetica Neue", Helvetica, "PingFang TC", "PingFang SC", "Microsoft JhengHei", "Microsoft YaHei", Arial, sans-serif; height: 100vh; overflow: hidden; color: #333; }
 
         /* 布局：左侧问卷，右侧地图 */
         #sidebar { width: 400px; background: #f8f9fa; padding: 20px; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 10; display: flex; flex-direction: column; }
@@ -57,15 +57,39 @@
         #stops-list { font-size: 0.85rem; max-height: 150px; overflow-y: auto; margin-top: 5px;}
         .stop-item { background: #fff; padding: 8px; border-bottom: 1px solid #eee; font-size: 0.8rem; display: flex; justify-content: space-between; }
         #status-bar { position: absolute; top: 10px; left: 10px; right: 10px; background: rgba(255, 255, 255, 0.9); padding: 8px; border-radius: 4px; font-size: 13px; text-align: center; pointer-events: none; z-index: 5; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        /* 公告栏样式 */
+        #announcement-bar { background: #fff3cd; color: #856404; padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #ffeeba; display: none; font-size: 0.85rem; }
+        /* 调查关闭遮罩 */
+        #closed-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; text-align: center; display: none; }
     </style>
 </head>
 <body>
+
+<!-- 调查关闭提示层 -->
+<div id="closed-mask">
+    <h2>🔒 Survey Closed / 調查已結束</h2>
+    <p>Thank you for your interest.</p>
+</div>
+<!-- 已完成今日调查的提示 -->
+<div id="submitted-mask" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.98); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; text-align: center; display: none;">
+    <h2 style="font-size: 2rem; color: #28a745; margin-bottom: 10px;">✅</h2>
+    <h2 style="color: #333;">Thank You! / 感謝參與</h2>
+    <p style="color: #666; padding: 0 20px;">
+        You have already submitted the survey today.<br>
+        您今天已經填寫過問卷了，感謝您的寶貴意見。
+    </p>
+</div>
 
 <div id="sidebar">
     <div class="lang-switch">
         <button class="lang-btn" onclick="setLang('en')">English</button>
         <button class="lang-btn active" onclick="setLang('zh-tw')">繁體中文</button>
+        <button class="lang-btn" onclick="setLang('zh-cn')">简体中文</button>
     </div>
+
+    <!-- 公告栏 -->
+    <div id="announcement-bar"></div>
 
     <h2 id="txt-title">維多利亞港海濱長廊使用體驗調查</h2>
     <p id="txt-intro">研究說明：本問卷旨在探討海濱步道的使用行為與體驗。所有資料絕對保密。</p>
@@ -100,7 +124,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
     // 🔴 1. 填入你的 Firebase 配置
     const firebaseConfig = {
@@ -112,7 +136,7 @@
         messagingSenderId: "254023717334",
         appId: "1:254023717334:web:cbb2a9bce184b1d2409477",
         measurementId: "G-DECCS32PFD"
-        };
+    };
 
     let db;
     try {
@@ -129,135 +153,150 @@
             return { success: false, error: e.message };
         }
     };
+
+    window.fetchSurveyConfig = async () => {
+        if (!db) return null;
+        try {
+            const docRef = doc(db, "config", "survey_settings");
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                return docSnap.data();
+            } else {
+                return null;
+            }
+        } catch (e) {
+            console.error("Error fetching config:", e);
+            return null;
+        }
+    };
 </script>
 
 <script>
     // ==========================================
-    // 🟢 问卷配置 (完全基于 PDF 内容)
+    // 🟢 问卷配置 (增加简体中文 zh-cn)
     // ==========================================
     const surveyConfig = [
-        // --- 第一部分：基本资料 [cite: 8] ---
-        { type: 'header', label: { en: 'Part 1: Demographics', 'zh-tw': '第一部分：基本資料' } },
+        // --- 第一部分：基本资料 ---
+        { type: 'header', label: { en: 'Part 1: Demographics', 'zh-tw': '第一部分：基本資料', 'zh-cn': '第一部分：基本资料' } },
         {
             id: 'age', type: 'radio',
-            label: { en: '1. What is your age group?', 'zh-tw': '1. 您的年齡段是？' },
+            label: { en: '1. What is your age group?', 'zh-tw': '1. 您的年齡段是？', 'zh-cn': '1. 您的年龄段是？' },
             options: [
-                { val: '18-30', text: { en: '18-30', 'zh-tw': '18-30歲' } },
-                { val: '31-50', text: { en: '31-50', 'zh-tw': '31-50歲' } },
-                { val: '51-65', text: { en: '51-65', 'zh-tw': '51-65歲' } },
-                { val: '65+', text: { en: 'Over 65', 'zh-tw': '65歲以上' } }
+                { val: '18-30', text: { en: '18-30', 'zh-tw': '18-30歲', 'zh-cn': '18-30岁' } },
+                { val: '31-50', text: { en: '31-50', 'zh-tw': '31-50歲', 'zh-cn': '31-50岁' } },
+                { val: '51-65', text: { en: '51-65', 'zh-tw': '51-65歲', 'zh-cn': '51-65岁' } },
+                { val: '65+', text: { en: 'Over 65', 'zh-tw': '65歲以上', 'zh-cn': '65岁以上' } }
             ]
         },
         {
             id: 'gender', type: 'radio',
-            label: { en: '2. Gender', 'zh-tw': '2. 您的性別：' },
+            label: { en: '2. Gender', 'zh-tw': '2. 您的性別：', 'zh-cn': '2. 您的性别：' },
             options: [
-                { val: 'M', text: { en: 'Male', 'zh-tw': '男' } },
-                { val: 'F', text: { en: 'Female', 'zh-tw': '女' } }
+                { val: 'M', text: { en: 'Male', 'zh-tw': '男', 'zh-cn': '男' } },
+                { val: 'F', text: { en: 'Female', 'zh-tw': '女', 'zh-cn': '女' } }
             ]
         },
         {
             id: 'identity', type: 'radio',
-            label: { en: '3. Residency status', 'zh-tw': '3. 您的身份是？' },
+            label: { en: '3. Residency status', 'zh-tw': '3. 您的身份是？', 'zh-cn': '3. 您的身份是？' },
             options: [
-                { val: 'Resident', text: { en: 'HK Resident', 'zh-tw': '香港居民' } },
-                { val: 'Tourist', text: { en: 'Tourist', 'zh-tw': '遊客' } }
+                { val: 'Resident', text: { en: 'HK Resident', 'zh-tw': '香港居民', 'zh-cn': '香港居民' } },
+                { val: 'Tourist', text: { en: 'Tourist', 'zh-tw': '遊客', 'zh-cn': '游客' } }
             ]
         },
 
-        // --- 第二部分：基本访问信息 [cite: 20] ---
-        { type: 'header', label: { en: 'Part 2: Basic Visit Info', 'zh-tw': '第二部分：基本訪問資訊' } },
+        // --- 第二部分：基本访问信息 ---
+        { type: 'header', label: { en: 'Part 2: Basic Visit Info', 'zh-tw': '第二部分：基本訪問資訊', 'zh-cn': '第二部分：基本访问信息' } },
         {
             id: 'frequency', type: 'radio',
-            label: { en: '1. Visit frequency', 'zh-tw': '1. 您訪問海濱長廊的頻率是？' },
+            label: { en: '1. Visit frequency', 'zh-tw': '1. 您訪問海濱長廊的頻率是？', 'zh-cn': '1. 您访问海滨长廊的频率是？' },
             options: [
-                { val: 'daily', text: { en: 'Almost daily', 'zh-tw': '幾乎每天' } },
-                { val: '3-4w', text: { en: '3-4 times/week', 'zh-tw': '每周3-4次' } },
-                { val: '1-2w', text: { en: '1-2 times/week', 'zh-tw': '每周1-2次' } },
-                { val: '1-2m', text: { en: '1-2 times/month', 'zh-tw': '每月1-2次' } },
-                { val: 'rarely', text: { en: 'Rarely', 'zh-tw': '很少' } }
+                { val: 'daily', text: { en: 'Almost daily', 'zh-tw': '幾乎每天', 'zh-cn': '几乎每天' } },
+                { val: '3-4w', text: { en: '3-4 times/week', 'zh-tw': '每周3-4次', 'zh-cn': '每周3-4次' } },
+                { val: '1-2w', text: { en: '1-2 times/week', 'zh-tw': '每周1-2次', 'zh-cn': '每周1-2次' } },
+                { val: '1-2m', text: { en: '1-2 times/month', 'zh-tw': '每月1-2次', 'zh-cn': '每月1-2次' } },
+                { val: 'rarely', text: { en: 'Rarely', 'zh-tw': '很少', 'zh-cn': '很少' } }
             ]
         },
         {
             id: 'day', type: 'radio',
-            label: { en: '2. Visit day', 'zh-tw': '2. 您今天是星期幾來訪？' },
+            label: { en: '2. Visit day', 'zh-tw': '2. 您今天是星期幾來訪？', 'zh-cn': '2. 您今天是星期几来访？' },
             options: [
-                { val: 'weekday', text: { en: 'Weekday', 'zh-tw': '工作日' } },
-                { val: 'weekend', text: { en: 'Weekend/Holiday', 'zh-tw': '週末或公眾假期' } }
+                { val: 'weekday', text: { en: 'Weekday', 'zh-tw': '工作日', 'zh-cn': '工作日' } },
+                { val: 'weekend', text: { en: 'Weekend/Holiday', 'zh-tw': '週末或公眾假期', 'zh-cn': '周末或公众假期' } }
             ]
         },
         {
-            id: 'arrival_time', type: 'radio', // PDF [cite: 30]
-            label: { en: '3. Arrival time', 'zh-tw': '3. 您到達這裡的具體時間段是？' },
+            id: 'arrival_time', type: 'radio',
+            label: { en: '3. Arrival time', 'zh-tw': '3. 您到達這裡的具體時間段是？', 'zh-cn': '3. 您到达这里的具体时间段是？' },
             options: [
-                { val: '12-14', text: { en: '12:00-14:00', 'zh-tw': '12:00-14:00 (午間)' } },
-                { val: '14-17', text: { en: '14:00-17:00', 'zh-tw': '14:00-17:00 (下午)' } },
-                { val: '17-19', text: { en: '17:00-19:00', 'zh-tw': '17:00-19:00 (傍晚)' } },
-                { val: 'other', text: { en: 'Other', 'zh-tw': '其他時間' } }
-            ]
-        },
-
-        // --- 第三部分：活动轨迹 [cite: 42] ---
-        { type: 'header', label: { en: 'Part 3: Activities', 'zh-tw': '第三部分：活動軌跡與停留' } },
-        {
-            id: 'purpose', type: 'checkbox', // 多选
-            label: { en: '1. Main purpose (Multiple)', 'zh-tw': '1. 您今天主要的活動目的是？(可多選)' },
-            options: [
-                { val: 'walk', text: { en: 'Strolling', 'zh-tw': '散步/閒逛' } },
-                { val: 'run', text: { en: 'Running', 'zh-tw': '跑步/鍛煉' } },
-                { val: 'rest', text: { en: 'Resting', 'zh-tw': '休息/發呆' } },
-                { val: 'pass', text: { en: 'Commuting', 'zh-tw': '通勤(路過)' } },
-                { val: 'photo', text: { en: 'Photography', 'zh-tw': '欣賞風景/拍照' } }
-            ]
-        },
-        // Q2 & Q3 是地图题，单独在 HTML 下方处理
-        {
-            id: 'rest_spot', type: 'checkbox', // [cite: 66]
-            label: { en: '4. Preferred resting spot', 'zh-tw': '4. 如果停下來休息，通常選擇哪裡？' },
-            options: [
-                { val: 'bench', text: { en: 'Bench', 'zh-tw': '長椅或座椅區' } },
-                { val: 'lawn', text: { en: 'Lawn', 'zh-tw': '草坪或綠地' } },
-                { val: 'railing', text: { en: 'By railing', 'zh-tw': '靠近欄杆的海邊' } },
-                { val: 'shade', text: { en: 'Under shade', 'zh-tw': '樹蔭下' } },
-                { val: 'art', text: { en: 'Near art', 'zh-tw': '藝術裝置附近' } }
+                { val: '12-14', text: { en: '12:00-14:00', 'zh-tw': '12:00-14:00 (午間)', 'zh-cn': '12:00-14:00 (午间)' } },
+                { val: '14-17', text: { en: '14:00-17:00', 'zh-tw': '14:00-17:00 (下午)', 'zh-cn': '14:00-17:00 (下午)' } },
+                { val: '17-19', text: { en: '17:00-19:00', 'zh-tw': '17:00-19:00 (傍晚)', 'zh-cn': '17:00-19:00 (傍晚)' } },
+                { val: 'other', text: { en: 'Other', 'zh-tw': '其他時間', 'zh-cn': '其他时间' } }
             ]
         },
 
-        // --- 第四部分：环境感知 [cite: 73] ---
-        { type: 'header', label: { en: 'Part 4: Perception', 'zh-tw': '第四部分：環境感知與評價' } },
+        // --- 第三部分：活动轨迹 ---
+        { type: 'header', label: { en: 'Part 3: Activities', 'zh-tw': '第三部分：活動軌跡與停留', 'zh-cn': '第三部分：活动轨迹与停留' } },
         {
-            id: 'reason_visit', type: 'checkbox', // 合并了 Q1 和 Q2，简化逻辑
-            label: { en: '1&2. Reason for visiting at this time (Optional)', 'zh-tw': '1&2. 您選擇現在來訪主要是因為？(可多選)' },
+            id: 'purpose', type: 'checkbox',
+            label: { en: '1. Main purpose (Multiple)', 'zh-tw': '1. 您今天主要的活動目的是？(可多選)', 'zh-cn': '1. 您今天主要的活动目的是？(可多选)' },
             options: [
-                { val: 'sun', text: { en: 'Sunlight', 'zh-tw': '享受陽光' } },
-                { val: 'cool', text: { en: 'Cooler temp', 'zh-tw': '氣溫舒適/較涼爽' } },
-                { val: 'lunch', text: { en: 'Lunch break', 'zh-tw': '午休便利' } },
-                { val: 'nightview', text: { en: 'Night view', 'zh-tw': '夜景/燈光' } },
-                { val: 'sunset', text: { en: 'Sunset', 'zh-tw': '觀賞日落' } }
+                { val: 'walk', text: { en: 'Strolling', 'zh-tw': '散步/閒逛', 'zh-cn': '散步/闲逛' } },
+                { val: 'run', text: { en: 'Running', 'zh-tw': '跑步/鍛煉', 'zh-cn': '跑步/锻炼' } },
+                { val: 'rest', text: { en: 'Resting', 'zh-tw': '休息/發呆', 'zh-cn': '休息/发呆' } },
+                { val: 'pass', text: { en: 'Commuting', 'zh-tw': '通勤(路過)', 'zh-cn': '通勤(路过)' } },
+                { val: 'photo', text: { en: 'Photography', 'zh-tw': '欣賞風景/拍照', 'zh-cn': '欣赏风景/拍照' } }
             ]
         },
         {
-            id: 'satisfaction', type: 'matrix', // 矩阵题 [cite: 84]
-            label: { en: '3. Satisfaction Rating (1-5)', 'zh-tw': '3. 請對「設施與環境」滿意度評分 (1-5分)' },
+            id: 'rest_spot', type: 'checkbox',
+            label: { en: '4. Preferred resting spot', 'zh-tw': '4. 如果停下來休息，通常選擇哪裡？', 'zh-cn': '4. 如果停下来休息，通常选择哪里？' },
+            options: [
+                { val: 'bench', text: { en: 'Bench', 'zh-tw': '長椅或座椅區', 'zh-cn': '长椅或座椅区' } },
+                { val: 'lawn', text: { en: 'Lawn', 'zh-tw': '草坪或綠地', 'zh-cn': '草坪或绿地' } },
+                { val: 'railing', text: { en: 'By railing', 'zh-tw': '靠近欄杆的海邊', 'zh-cn': '靠近栏杆的海边' } },
+                { val: 'shade', text: { en: 'Under shade', 'zh-tw': '樹蔭下', 'zh-cn': '树荫下' } },
+                { val: 'art', text: { en: 'Near art', 'zh-tw': '藝術裝置附近', 'zh-cn': '艺术装置附近' } }
+            ]
+        },
+
+        // --- 第四部分：环境感知 ---
+        { type: 'header', label: { en: 'Part 4: Perception', 'zh-tw': '第四部分：環境感知與評價', 'zh-cn': '第四部分：环境感知与评价' } },
+        {
+            id: 'reason_visit', type: 'checkbox',
+            label: { en: '1&2. Reason for visiting at this time (Optional)', 'zh-tw': '1&2. 您選擇現在來訪主要是因為？(可多選)', 'zh-cn': '1&2. 您选择现在来访主要是因为？(可多选)' },
+            options: [
+                { val: 'sun', text: { en: 'Sunlight', 'zh-tw': '享受陽光', 'zh-cn': '享受阳光' } },
+                { val: 'cool', text: { en: 'Cooler temp', 'zh-tw': '氣溫舒適/較涼爽', 'zh-cn': '气温舒适/较凉爽' } },
+                { val: 'lunch', text: { en: 'Lunch break', 'zh-tw': '午休便利', 'zh-cn': '午休便利' } },
+                { val: 'nightview', text: { en: 'Night view', 'zh-tw': '夜景/燈光', 'zh-cn': '夜景/灯光' } },
+                { val: 'sunset', text: { en: 'Sunset', 'zh-tw': '觀賞日落', 'zh-cn': '观赏日落' } }
+            ]
+        },
+        {
+            id: 'satisfaction', type: 'matrix',
+            label: { en: '3. Satisfaction Rating (1-5)', 'zh-tw': '3. 請對「設施與環境」滿意度評分 (1-5分)', 'zh-cn': '3. 请对“设施与环境”满意度评分 (1-5分)' },
             rows: [
-                { id: 'seat', text: { en: 'Seating', 'zh-tw': '座椅數量與舒適度' } },
-                { id: 'shade', text: { en: 'Shading', 'zh-tw': '遮陽/遮雨設施' } },
-                { id: 'green', text: { en: 'Greenery', 'zh-tw': '綠化景觀' } },
-                { id: 'seaview', text: { en: 'Sea view', 'zh-tw': '親海視野' } },
-                { id: 'art', text: { en: 'Art', 'zh-tw': '藝術與互動裝置' } },
-                { id: 'commercial', text: { en: 'Facilities', 'zh-tw': '商業設施(販賣機等)' } }
+                { id: 'seat', text: { en: 'Seating', 'zh-tw': '座椅數量與舒適度', 'zh-cn': '座椅数量与舒适度' } },
+                { id: 'shade', text: { en: 'Shading', 'zh-tw': '遮陽/遮雨設施', 'zh-cn': '遮阳/遮雨设施' } },
+                { id: 'green', text: { en: 'Greenery', 'zh-tw': '綠化景觀', 'zh-cn': '绿化景观' } },
+                { id: 'seaview', text: { en: 'Sea view', 'zh-tw': '親海視野', 'zh-cn': '亲海视野' } },
+                { id: 'art', text: { en: 'Art', 'zh-tw': '藝術與互動裝置', 'zh-cn': '艺术与互动装置' } },
+                { id: 'commercial', text: { en: 'Facilities', 'zh-tw': '商業設施(販賣機等)', 'zh-cn': '商业设施(贩卖机等)' } }
             ],
             cols: ['1', '2', '3', '4', '5']
         },
         {
-            id: 'attraction', type: 'radio', // [cite: 87]
-            label: { en: '4. Factor for staying long', 'zh-tw': '4. 哪個因素最能吸引您長時間停留？' },
+            id: 'attraction', type: 'radio',
+            label: { en: '4. Factor for staying long', 'zh-tw': '4. 哪個因素最能吸引您長時間停留？', 'zh-cn': '4. 哪个因素最能吸引您长时间停留？' },
             options: [
-                { val: 'view', text: { en: 'Sea view', 'zh-tw': '寬闊的海景' } },
-                { val: 'green', text: { en: 'Greenery', 'zh-tw': '豐富的綠植' } },
-                { val: 'seat', text: { en: 'Comfort', 'zh-tw': '舒適的座椅' } },
-                { val: 'art', text: { en: 'Art', 'zh-tw': '獨特的藝術裝置' } },
-                { val: 'shade', text: { en: 'Shade', 'zh-tw': '遮陽避暑' } }
+                { val: 'view', text: { en: 'Sea view', 'zh-tw': '寬闊的海景', 'zh-cn': '宽阔的海景' } },
+                { val: 'green', text: { en: 'Greenery', 'zh-tw': '豐富的綠植', 'zh-cn': '丰富的绿植' } },
+                { val: 'seat', text: { en: 'Comfort', 'zh-tw': '舒適的座椅', 'zh-cn': '舒适的座椅' } },
+                { val: 'art', text: { en: 'Art', 'zh-tw': '獨特的藝術裝置', 'zh-cn': '独特的艺术装置' } },
+                { val: 'shade', text: { en: 'Shade', 'zh-tw': '遮陽避暑', 'zh-cn': '遮阳避暑' } }
             ]
         }
     ];
@@ -287,7 +326,6 @@
             label.innerText = q.label[currentLang];
             wrapper.appendChild(label);
 
-            // 单选 Radio
             if (q.type === 'radio') {
                 const group = document.createElement('div');
                 group.className = 'radio-group';
@@ -298,7 +336,6 @@
                 });
                 wrapper.appendChild(group);
             }
-            // 多选 Checkbox
             else if (q.type === 'checkbox') {
                 const group = document.createElement('div');
                 group.className = 'checkbox-group';
@@ -309,17 +346,14 @@
                 });
                 wrapper.appendChild(group);
             }
-            // 矩阵 Matrix
             else if (q.type === 'matrix') {
                 const table = document.createElement('table');
                 table.className = 'matrix-table';
 
-                // 表头
                 const thead = document.createElement('tr');
-                thead.innerHTML = `<th>要素</th>${q.cols.map(c => `<th>${c}</th>`).join('')}`;
+                thead.innerHTML = `<th>${currentLang === 'en' ? 'Factor' : '要素'}</th>${q.cols.map(c => `<th>${c}</th>`).join('')}`;
                 table.appendChild(thead);
 
-                // 行
                 q.rows.forEach(row => {
                     const tr = document.createElement('tr');
                     let tds = `<td>${row.text[currentLang]}</td>`;
@@ -344,7 +378,8 @@
         // 更新固定文本
         const texts = {
             'en': { title: "Survey on Victoria Harbour Promenade", intro: "This study aims to understand user behavior and experience.", map: "Part 3: Activity Trajectory (Draw on Map)", mapHint: "1. Click 'Start Drawing' to trace your route.\n2. Click on the line to mark spots visited.", draw: "Start Drawing", clear: "Redraw", submit: "Submit Survey" },
-            'zh-tw': { title: "維多利亞港海濱長廊使用體驗調查", intro: "研究說明：本問卷旨在探討海濱步道的使用行為與體驗。所有資料絕對保密。", map: "第三部分：活動軌跡 (請在地圖上繪製)", mapHint: "1. 點擊「開始繪製」畫出您的<b>行走路線</b>。<br>2. 畫完後，點擊線上的點標記您<b>經過的區域</b>或<b>停留點</b>。", draw: "開始繪製路線", clear: "清除重畫", submit: "提交問卷" }
+            'zh-tw': { title: "維多利亞港海濱長廊使用體驗調查", intro: "研究說明：本問卷旨在探討海濱步道的使用行為與體驗。所有資料絕對保密。", map: "第三部分：活動軌跡 (請在地圖上繪製)", mapHint: "1. 點擊「開始繪製」畫出您的<b>行走路線</b>。<br>2. 畫完後，點擊線上的點標記您<b>經過的區域</b>或<b>停留點</b>。", draw: "開始繪製路線", clear: "清除重畫", submit: "提交問卷" },
+            'zh-cn': { title: "维多利亚港海滨长廊使用体验调查", intro: "研究说明：本问卷旨在探讨海滨步道的使用行为与体验。所有资料绝对保密。", map: "第三部分：活动轨迹 (请在地图上绘制)", mapHint: "1. 点击“开始绘制”画出您的<b>行走路线</b>。<br>2. 画完后，点击线上的点标记您<b>经过的区域</b>或<b>停留点</b>。", draw: "开始绘制路线", clear: "清除重画", submit: "提交问卷" }
         };
         document.getElementById('txt-title').innerText = texts[lang].title;
         document.getElementById('txt-intro').innerText = texts[lang].intro;
@@ -356,197 +391,261 @@
 
         document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
         document.querySelector(`button[onclick="setLang('${lang}')"]`).classList.add('active');
+
+        // ✨ 切换地图语言
+        updateMapLanguage(lang);
     };
+
+    // 🟢 新增：更新地图语言函数
+    function updateMapLanguage(langCode) {
+        if (!map || !map.getStyle()) return;
+
+        const style = map.getStyle();
+        if (!style.layers) return;
+
+        // Mapbox Streets 默认包含 name_en, name_zh-Hant, name_zh-Hans 字段
+        // 我们遍历所有文字层，强制更改 text-field 属性
+        const labelLayers = style.layers.filter(layer =>
+            layer.type === 'symbol' && layer.layout && layer.layout['text-field']
+        );
+
+        let textFieldValue = ['get', 'name']; // 默认本地语言
+
+        if (langCode === 'en') {
+            textFieldValue = ['coalesce', ['get', 'name_en'], ['get', 'name']];
+        } else if (langCode === 'zh-tw') {
+            textFieldValue = ['coalesce', ['get', 'name_zh-Hant'], ['get', 'name']];
+        } else if (langCode === 'zh-cn') {
+            textFieldValue = ['coalesce', ['get', 'name_zh-Hans'], ['get', 'name']];
+        }
+
+        labelLayers.forEach(layer => {
+            // 只修改包含 'name' 字段的图层，避免修改图标或其他纯格式图层
+            try {
+                // 判断当前图层的 text-field 是否依赖于 name
+                const currentField = JSON.stringify(layer.layout['text-field']);
+                if (currentField.includes('name')) {
+                     map.setLayoutProperty(layer.id, 'text-field', textFieldValue);
+                }
+            } catch(e) { console.log(e); }
+        });
+    }
 
     // ==========================================
     // 🗺️ 地图逻辑 (Mapbox)
     // ==========================================
-
-    // 🔴 2. 填入你的 Mapbox Token
     mapboxgl.accessToken = 'pk.eyJ1Ijoiamh3MTExIiwiYSI6ImNtazgybjFyeDFidGczY29laWRtemFkMnoifQ.y1ffbT2LMx4jc8ZT8u9xXg';
 
-    // 设置为维多利亚港中心 [cite: 31, 52-65]
-    const map = new mapboxgl.Map({
-        container: 'map',
-        style: 'mapbox://styles/mapbox/streets-v11',
-        center: [114.16, 22.285], // 香港维多利亚港中心
-        zoom: 13,
-        pitch: 45, // 稍微倾斜，看3D效果更好
-    });
-
+    let map;
     let isDrawing = false, drawMode = false, pathCoordinates = [], stopsData = [];
     const statusBar = document.getElementById('status-bar');
 
-    map.on('load', () => {
+    async function initApp() {
         renderForm(); // 初始化表单
 
-        // 添加红色路径图层
-        map.addSource('route', { 'type': 'geojson', 'data': { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [] } } });
-        map.addLayer({ 'id': 'route', 'type': 'line', 'source': 'route', 'layout': { 'line-join': 'round', 'line-cap': 'round' }, 'paint': { 'line-color': '#e74c3c', 'line-width': 5, 'line-opacity': 0.8 } });
-        statusBar.innerText = "Ready";
-    });
-
-    // 绘图模式切换
-    document.getElementById('btn-draw').addEventListener('click', () => {
-        drawMode = true; map.dragPan.disable();
-        document.getElementById('map').classList.add('cursor-pen');
-        document.getElementById('btn-draw').style.display = 'none';
-        document.getElementById('btn-clear').style.display = 'inline-block';
-        statusBar.innerText = "繪畫模式：請按住滑鼠/手指畫出您的行走路線";
-    });
-
-    document.getElementById('btn-clear').addEventListener('click', () => {
-        pathCoordinates = []; stopsData = [];
-        map.getSource('route').setData({ 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [] } });
-        document.querySelectorAll('.mapboxgl-marker').forEach(m => m.remove());
-        document.getElementById('stops-list').innerHTML = '';
-        document.getElementById('stops-container').style.display = 'none';
-
-        drawMode = false; map.dragPan.enable();
-        document.getElementById('map').classList.remove('cursor-pen');
-        document.getElementById('btn-draw').style.display = 'inline-block';
-        document.getElementById('btn-clear').style.display = 'none';
-        statusBar.innerText = "已清除";
-    });
-
-    // 鼠标/触摸 画线逻辑
-    function handleMove(coords) {
-        if (!drawMode || !isDrawing) return;
-        pathCoordinates.push(coords);
-        map.getSource('route').setData({ 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': pathCoordinates } });
-    }
-
-    map.on('mousedown', (e) => { if(drawMode) { isDrawing = true; pathCoordinates = [[e.lngLat.lng, e.lngLat.lat]]; } });
-    map.on('mousemove', (e) => handleMove([e.lngLat.lng, e.lngLat.lat]));
-    map.on('mouseup', () => endDraw());
-
-    map.getCanvas().addEventListener('touchstart', (e) => {
-        if (!drawMode) return; e.preventDefault();
-        const loc = map.unproject([e.touches[0].clientX, e.touches[0].clientY]);
-        isDrawing = true; pathCoordinates = [[loc.lng, loc.lat]];
-    }, {passive:false});
-
-    map.getCanvas().addEventListener('touchmove', (e) => {
-        if (!drawMode) return; e.preventDefault();
-        const loc = map.unproject([e.touches[0].clientX, e.touches[0].clientY]);
-        handleMove([loc.lng, loc.lat]);
-    }, {passive:false});
-
-    map.getCanvas().addEventListener('touchend', () => endDraw());
-
-    function endDraw() {
-        if (!isDrawing) return;
-        isDrawing = false; drawMode = false; map.dragPan.enable();
-        document.getElementById('map').classList.remove('cursor-pen');
-
-        // 平滑路径
-        if(pathCoordinates.length > 2) {
-            const simplified = turf.simplify(turf.lineString(pathCoordinates), {tolerance: 0.0001, highQuality: true});
-            pathCoordinates = simplified.geometry.coordinates;
-            map.getSource('route').setData(simplified);
+        let config = null;
+        if (window.fetchSurveyConfig) {
+            config = await window.fetchSurveyConfig();
         }
-        statusBar.innerText = "路徑已生成，請點擊路徑上的點標記經過區域或停留點";
+
+        if (config) {
+            console.log("Configuration loaded:", config);
+
+            // --- 检查今日是否已填写 ---
+            if (config.enabledDailyLimit) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const lastSubmitDate = localStorage.getItem('survey_last_submit_date');
+
+                if (lastSubmitDate === todayStr) {
+                    document.getElementById('submitted-mask').style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                    return;
+                }
+            }
+
+            // 检查问卷是否开放
+            if (config.isSurveyOpen === false) {
+                document.getElementById('closed-mask').style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+                return;
+            }
+
+            // 显示公告
+            if (config.announcement) {
+                const banner = document.getElementById('announcement-bar');
+                banner.innerText = "📢 " + config.announcement;
+                banner.style.display = 'block';
+            }
+        }
+
+        // 确定地图样式
+        let mapStyleUrl = 'mapbox://styles/mapbox/streets-v11';
+        if (config && config.mapStyle) {
+            if (config.mapStyle === 'light') {
+                mapStyleUrl = 'mapbox://styles/mapbox/light-v10';
+            } else if (config.mapStyle.startsWith('mapbox://')) {
+                mapStyleUrl = config.mapStyle;
+            }
+        }
+
+        map = new mapboxgl.Map({
+            container: 'map',
+            style: mapStyleUrl,
+            center: [114.16, 22.285],
+            zoom: 13,
+            pitch: 0,
+        });
+
+        map.on('load', () => {
+            map.addSource('route', { 'type': 'geojson', 'data': { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [] } } });
+            map.addLayer({ 'id': 'route', 'type': 'line', 'source': 'route', 'layout': { 'line-join': 'round', 'line-cap': 'round' }, 'paint': { 'line-color': '#e74c3c', 'line-width': 5, 'line-opacity': 0.8 } });
+            statusBar.innerText = "Ready";
+
+            // 初始化时设置地图语言
+            updateMapLanguage(currentLang);
+
+            setupMapInteractions();
+        });
     }
 
-    // 标记停留点逻辑 (对应 PDF Q2 & Q4)
-<!--    map.on('click', (e) => {-->
-<!--        if (drawMode || pathCoordinates.length === 0) return;-->
+    function setupMapInteractions() {
+        // 绘图模式切换
+        document.getElementById('btn-draw').addEventListener('click', () => {
+            drawMode = true; map.dragPan.disable();
+            document.getElementById('map').classList.add('cursor-pen');
+            document.getElementById('btn-draw').style.display = 'none';
+            document.getElementById('btn-clear').style.display = 'inline-block';
+            statusBar.innerText = currentLang === 'en' ? "Drawing Mode: Drag to draw path" : (currentLang === 'zh-cn' ? "绘画模式：请按住鼠标/手指画出您的行走路线" : "繪畫模式：請按住滑鼠/手指畫出您的行走路線");
+        });
 
-<!--        // 判断是否点击在路径附近-->
-<!--        const pt = turf.point([e.lngLat.lng, e.lngLat.lat]);-->
-<!--        const line = turf.lineString(pathCoordinates);-->
-<!--        const dist = turf.pointToLineDistance(pt, line, {units: 'kilometers'});-->
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            pathCoordinates = []; stopsData = [];
+            map.getSource('route').setData({ 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [] } });
+            document.querySelectorAll('.mapboxgl-marker').forEach(m => m.remove());
+            document.getElementById('stops-list').innerHTML = '';
+            document.getElementById('stops-container').style.display = 'none';
 
-<!--        if (dist > 0.2) { statusBar.innerText = "⚠️ 請點擊路徑附近的點"; return; }-->
+            drawMode = false; map.dragPan.enable();
+            document.getElementById('map').classList.remove('cursor-pen');
+            document.getElementById('btn-draw').style.display = 'inline-block';
+            document.getElementById('btn-clear').style.display = 'none';
+            statusBar.innerText = currentLang === 'en' ? "Cleared" : (currentLang === 'zh-cn' ? "已清除" : "已清除");
+        });
 
-<!--        const name = prompt(currentLang === 'en' ? "Location Name/Activity:" : "地點名稱/活動 (例如: 中山公園/休息):");-->
-<!--        if (!name) return;-->
+        // 鼠标/触摸 画线逻辑
+        function handleMove(coords) {
+            if (!drawMode || !isDrawing) return;
+            pathCoordinates.push(coords);
+            map.getSource('route').setData({ 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': pathCoordinates } });
+        }
 
-<!--        new mapboxgl.Marker({ color: '#2ecc71' }).setLngLat(e.lngLat).addTo(map);-->
-<!--        stopsData.push({ lng: e.lngLat.lng, lat: e.lngLat.lat, name: name });-->
+        map.on('mousedown', (e) => { if(drawMode) { isDrawing = true; pathCoordinates = [[e.lngLat.lng, e.lngLat.lat]]; } });
+        map.on('mousemove', (e) => handleMove([e.lngLat.lng, e.lngLat.lat]));
+        map.on('mouseup', () => endDraw());
 
-<!--        document.getElementById('stops-container').style.display = 'block';-->
-<!--        const div = document.createElement('div');-->
-<!--        div.className = 'stop-item';-->
-<!--        div.innerHTML = `<span>📍 ${name}</span>`;-->
-<!--        document.getElementById('stops-list').appendChild(div);-->
-<!--    });-->
-// ==========================================
-    // 📍 標記停留點邏輯 (更新版：加入停留時間選擇)
-    // ==========================================
+        map.getCanvas().addEventListener('touchstart', (e) => {
+            if (!drawMode) return; e.preventDefault();
+            const loc = map.unproject([e.touches[0].clientX, e.touches[0].clientY]);
+            isDrawing = true; pathCoordinates = [[loc.lng, loc.lat]];
+        }, {passive:false});
+
+        map.getCanvas().addEventListener('touchmove', (e) => {
+            if (!drawMode) return; e.preventDefault();
+            const loc = map.unproject([e.touches[0].clientX, e.touches[0].clientY]);
+            handleMove([loc.lng, loc.lat]);
+        }, {passive:false});
+
+        map.getCanvas().addEventListener('touchend', () => endDraw());
+
+        function endDraw() {
+            if (!isDrawing) return;
+            isDrawing = false; drawMode = false; map.dragPan.enable();
+            document.getElementById('map').classList.remove('cursor-pen');
+
+            if(pathCoordinates.length > 2) {
+                const simplified = turf.simplify(turf.lineString(pathCoordinates), {tolerance: 0.0001, highQuality: true});
+                pathCoordinates = simplified.geometry.coordinates;
+                map.getSource('route').setData(simplified);
+            }
+            statusBar.innerText = currentLang === 'en'
+                ? "Path generated. Click on the path to mark stops."
+                : (currentLang === 'zh-cn' ? "路径已生成，请点击路径上的点标记经过区域或停留点" : "路徑已生成，請點擊路徑上的點標記經過區域或停留點");
+        }
+
+        // ==========================================
+        // 📍 標記停留點邏輯
+        // ==========================================
         map.on('click', (e) => {
             if (drawMode || pathCoordinates.length === 0) return;
 
-            // 判斷是否點擊在路徑附近
             const pt = turf.point([e.lngLat.lng, e.lngLat.lat]);
             const line = turf.lineString(pathCoordinates);
             const dist = turf.pointToLineDistance(pt, line, {units: 'kilometers'});
 
             if (dist > 0.2) {
-            statusBar.innerText = currentLang === 'en' ? "⚠️ Please click near your path" : "⚠️ 請點擊路徑附近的點";
-            return;
+                statusBar.innerText = currentLang === 'en' ? "⚠️ Please click near your path" : (currentLang === 'zh-cn' ? "⚠️ 请点击路径附近的点" : "⚠️ 請點擊路徑附近的點");
+                return;
             }
 
-            // 1. 輸入地點名稱
-            const name = prompt(currentLang === 'en' ? "Location Name/Activity:" : "地點名稱/活動 (例如: 中山公園/休息):");
+            // 1. 输入地点
+            const promptName = currentLang === 'en' ? "Location Name/Activity:" : (currentLang === 'zh-cn' ? "地点名称/活动 (例如: 中山公园/休息):" : "地點名稱/活動 (例如: 中山公園/休息):");
+            const name = prompt(promptName);
             if (!name) return;
 
-            // 2. 選擇停留時間 (使用 prompt 模擬簡單選擇)
-            const durationPrompt = currentLang === 'en'
-                ? "Stay Duration:\n1: 0-10min\n2: 10-20min\n3: 20-30min\n4: 30+min\n(Please enter 1, 2, 3, or 4)"
-                : "請選擇停留時間：\n1: 0-10分鐘\n2: 10-20分鐘\n3: 20-30分鐘\n4: 30分鐘以上\n(請輸入數字 1-4)";
+            // 2. 选择时间
+            let durationPrompt;
+            if (currentLang === 'en') {
+                durationPrompt = "Stay Duration:\n1: 0-10min\n2: 10-20min\n3: 20-30min\n4: 30+min\n(Please enter 1, 2, 3, or 4)";
+            } else if (currentLang === 'zh-cn') {
+                durationPrompt = "请选择停留时间：\n1: 0-10分钟\n2: 10-20分钟\n3: 20-30分钟\n4: 30分钟以上\n(请输入数字 1-4)";
+            } else {
+                durationPrompt = "請選擇停留時間：\n1: 0-10分鐘\n2: 10-20分鐘\n3: 20-30分鐘\n4: 30分鐘以上\n(請輸入數字 1-4)";
+            }
 
             const durChoice = prompt(durationPrompt, "1");
 
-            // 時間映射表
-            const durMap = {
-            "1": "0-10min",
-            "2": "10-20min",
-            "3": "20-30min",
-            "4": "30+min"
-            };
-            const duration = durMap[durChoice] || "0-10min"; // 預設 0-10min
+            const durMap = { "1": "0-10min", "2": "10-20min", "3": "20-30min", "4": "30+min" };
+            const duration = durMap[durChoice] || "0-10min";
 
-            // 3. 添加到地圖與數據記錄
+            // 3. 标记
             new mapboxgl.Marker({ color: '#2ecc71' }).setLngLat(e.lngLat).addTo(map);
             stopsData.push({
-            lng: e.lngLat.lng,
-            lat: e.lngLat.lat,
-            name: name,
-            duration: duration // 新增停留時間欄位
+                lng: e.lngLat.lng,
+                lat: e.lngLat.lat,
+                name: name,
+                duration: duration
             });
 
-            // 4. 更新左側列表顯示
             document.getElementById('stops-container').style.display = 'block';
             const div = document.createElement('div');
             div.className = 'stop-item';
-            div.style.flexDirection = 'column'; // 讓名稱和時間分行或緊湊排列
+            div.style.flexDirection = 'column';
             div.style.alignItems = 'flex-start';
 
+            const stayedText = currentLang === 'en' ? 'Stayed' : '停留';
             div.innerHTML = `
                 <div style="font-weight:bold;">📍 ${name}</div>
-                <div style="font-size:11px; color:#28a745;">⏱️ ${currentLang === 'en' ? 'Stayed' : '停留'}: ${duration}</div>
+                <div style="font-size:11px; color:#28a745;">⏱️ ${stayedText}: ${duration}</div>
             `;
             document.getElementById('stops-list').appendChild(div);
 
-            statusBar.innerText = currentLang === 'en' ? "Stop added" : "停留點已標記";
+            statusBar.innerText = currentLang === 'en' ? "Stop added" : (currentLang === 'zh-cn' ? "停留点已标记" : "停留點已標記");
         });
+    }
+
+    // 启动
+    setTimeout(initApp, 500);
 
     // ==========================================
     // 提交逻辑
     // ==========================================
     document.getElementById('btn-submit').addEventListener('click', async () => {
         const btn = document.getElementById('btn-submit');
-
-        // 1. 收集问卷数据
         const formData = {};
 
-        // 获取所有 input (radio/checkbox)
         document.querySelectorAll('input:checked').forEach(input => {
             const name = input.name;
             const val = input.value;
-
-            // 如果是矩阵题 (name里有下划线) 或 多选题，存为数组或对象
             if (formData[name]) {
                 if (!Array.isArray(formData[name])) formData[name] = [formData[name]];
                 formData[name].push(val);
@@ -555,24 +654,27 @@
             }
         });
 
-        // 2. 验证地图数据 (PDF要求有路线 [cite: 51])
         if (pathCoordinates.length === 0) {
-            alert(currentLang === 'en' ? "Please draw your route on the map!" : "請在第三部分繪製您的行走路線！");
+            alert(currentLang === 'en'
+                ? "Please draw your route on the map!"
+                : (currentLang === 'zh-cn' ? "请在第三部分绘制您的行走路线！" : "請在第三部分繪製您的行走路線！"));
             return;
         }
 
         btn.disabled = true; btn.innerText = "...";
 
-        // 3. 提交
         const result = await window.submitToFirebase({
             answers: formData,
-            path: JSON.stringify(pathCoordinates), // 转字符串存
+            path: JSON.stringify(pathCoordinates),
             stops: stopsData,
             timestamp: new Date().toISOString(),
             lang: currentLang
         });
 
         if (result.success) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            localStorage.setItem('survey_last_submit_date', todayStr);
+
             alert("提交成功 / Submitted Successfully! ID: " + result.id);
             location.reload();
         } else {
