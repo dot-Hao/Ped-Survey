@@ -440,28 +440,110 @@
     let isDrawing = false, drawMode = false, pathCoordinates = [], stopsData = [];
     const statusBar = document.getElementById('status-bar');
 
+<!--    async function initApp() {-->
+<!--        renderForm(); // 初始化表单-->
+
+<!--        let config = null;-->
+<!--        if (window.fetchSurveyConfig) {-->
+<!--            config = await window.fetchSurveyConfig();-->
+<!--        }-->
+
+<!--        if (config) {-->
+<!--            console.log("Configuration loaded:", config);-->
+
+<!--            // -&#45;&#45; 检查今日是否已填写 -&#45;&#45;-->
+<!--            if (config.enabledDailyLimit) {-->
+<!--                const todayStr = new Date().toISOString().split('T')[0];-->
+<!--                const lastSubmitDate = localStorage.getItem('survey_last_submit_date');-->
+
+<!--                if (lastSubmitDate === todayStr) {-->
+<!--                    document.getElementById('submitted-mask').style.display = 'flex';-->
+<!--                    document.body.style.overflow = 'hidden';-->
+<!--                    return;-->
+<!--                }-->
+<!--            }-->
+
+<!--            // 检查问卷是否开放-->
+<!--            if (config.isSurveyOpen === false) {-->
+<!--                document.getElementById('closed-mask').style.display = 'flex';-->
+<!--                document.body.style.overflow = 'hidden';-->
+<!--                return;-->
+<!--            }-->
+
+<!--            // 显示公告-->
+<!--            if (config.announcement) {-->
+<!--                const banner = document.getElementById('announcement-bar');-->
+<!--                banner.innerText = "📢 " + config.announcement;-->
+<!--                banner.style.display = 'block';-->
+<!--            }-->
+<!--        }-->
+
+<!--        // 确定地图样式-->
+<!--        let mapStyleUrl = 'mapbox://styles/mapbox/streets-v11';-->
+<!--        if (config && config.mapStyle) {-->
+<!--            if (config.mapStyle === 'light') {-->
+<!--                mapStyleUrl = 'mapbox://styles/mapbox/light-v10';-->
+<!--            } else if (config.mapStyle.startsWith('mapbox://')) {-->
+<!--                mapStyleUrl = config.mapStyle;-->
+<!--            }-->
+<!--        }-->
+
+<!--        map = new mapboxgl.Map({-->
+<!--            container: 'map',-->
+<!--            style: mapStyleUrl,-->
+<!--            center: [114.16, 22.285],-->
+<!--            zoom: 13,-->
+<!--            pitch: 0,-->
+<!--        });-->
+
+<!--        map.on('load', () => {-->
+<!--            map.addSource('route', { 'type': 'geojson', 'data': { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [] } } });-->
+<!--            map.addLayer({ 'id': 'route', 'type': 'line', 'source': 'route', 'layout': { 'line-join': 'round', 'line-cap': 'round' }, 'paint': { 'line-color': '#e74c3c', 'line-width': 5, 'line-opacity': 0.8 } });-->
+<!--            statusBar.innerText = "Ready";-->
+
+<!--            // 初始化时设置地图语言-->
+<!--            updateMapLanguage(currentLang);-->
+
+<!--            setupMapInteractions();-->
+<!--        });-->
+<!--    }-->
     async function initApp() {
         renderForm(); // 初始化表单
 
+        // 等待 Firebase module 加载完毕
         let config = null;
         if (window.fetchSurveyConfig) {
             config = await window.fetchSurveyConfig();
         }
 
+        // 3.1 处理配置逻辑
         if (config) {
             console.log("Configuration loaded:", config);
 
-            // --- 检查今日是否已填写 ---
-            if (config.enabledDailyLimit) {
-                const todayStr = new Date().toISOString().split('T')[0];
+            // --- ✨ 每日限制检查逻辑 (修复时区版) ---
+            // 确保开关开启
+            const isLimitEnabled = config.enabledDailyLimit === true || config.enabledDailyLimit === "true";
+
+            if (isLimitEnabled) {
+                // 获取本地时间 (解决 UTC 时差问题)
+                const d = new Date();
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const todayStr = `${year}-${month}-${day}`; // 格式：2026-01-16
+
                 const lastSubmitDate = localStorage.getItem('survey_last_submit_date');
 
+                console.log(`Limit Check: Today=${todayStr}, Last=${lastSubmitDate}`);
+
                 if (lastSubmitDate === todayStr) {
+                    // 如果记录的日期是今天，显示感谢层
                     document.getElementById('submitted-mask').style.display = 'flex';
                     document.body.style.overflow = 'hidden';
-                    return;
+                    return; // ⛔️ 停止加载
                 }
             }
+            // ------------------------------------
 
             // 检查问卷是否开放
             if (config.isSurveyOpen === false) {
@@ -478,7 +560,7 @@
             }
         }
 
-        // 确定地图样式
+        // 3.2 确定地图样式
         let mapStyleUrl = 'mapbox://styles/mapbox/streets-v11';
         if (config && config.mapStyle) {
             if (config.mapStyle === 'light') {
@@ -488,6 +570,7 @@
             }
         }
 
+        // 3.3 初始化地图
         map = new mapboxgl.Map({
             container: 'map',
             style: mapStyleUrl,
@@ -501,9 +584,7 @@
             map.addLayer({ 'id': 'route', 'type': 'line', 'source': 'route', 'layout': { 'line-join': 'round', 'line-cap': 'round' }, 'paint': { 'line-color': '#e74c3c', 'line-width': 5, 'line-opacity': 0.8 } });
             statusBar.innerText = "Ready";
 
-            // 初始化时设置地图语言
             updateMapLanguage(currentLang);
-
             setupMapInteractions();
         });
     }
@@ -671,8 +752,24 @@
             lang: currentLang
         });
 
+<!--        if (result.success) {-->
+<!--            const todayStr = new Date().toISOString().split('T')[0];-->
+<!--            localStorage.setItem('survey_last_submit_date', todayStr);-->
+
+<!--            alert("提交成功 / Submitted Successfully! ID: " + result.id);-->
+<!--            location.reload();-->
+<!--        } else {-->
+<!--            alert("Error: " + result.error);-->
+<!--            btn.disabled = false; btn.innerText = "Retry";-->
+<!--        }-->
         if (result.success) {
-            const todayStr = new Date().toISOString().split('T')[0];
+            // ✨ 修复：使用本地时间记录 (与 initApp 保持一致)
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+
             localStorage.setItem('survey_last_submit_date', todayStr);
 
             alert("提交成功 / Submitted Successfully! ID: " + result.id);
