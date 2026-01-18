@@ -173,6 +173,16 @@
 
 <script>
     // ==========================================
+    // 🛠️ 修改位置 1：确保有这个统一的获取日期函数
+    // ==========================================
+    function getLocalTodayDate() {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`; // 返回格式例如 "2026-01-17"
+    }
+    // ==========================================
     // 🟢 问卷配置 (增加简体中文 zh-cn)
     // ==========================================
     const surveyConfig = [
@@ -507,7 +517,46 @@
 <!--            setupMapInteractions();-->
 <!--        });-->
 <!--    }-->
+
+    // ==========================================
+    // 🛠️ 修改位置 2：页面加载时的强力检查
+    // ==========================================
+
+    // 1. 立即执行检查 (IIFE) - 放在脚本最前面
+    (function() {
+        const lastSubmitDate = localStorage.getItem('survey_last_submit_date');
+        const todayStr = getLocalTodayDate(); // 使用统一函数
+
+        if (lastSubmitDate === todayStr) {
+            // 如果本地存的日期也是今天，强制显示已提交遮罩
+            // 等待 DOM 解析完成后立即执行
+            window.addEventListener('DOMContentLoaded', () => {
+                const mask = document.getElementById('submitted-mask');
+                const sidebar = document.getElementById('sidebar');
+                const mapDiv = document.getElementById('map');
+
+                if (mask) mask.style.display = 'flex';
+                if (sidebar) sidebar.style.display = 'none'; // 彻底隐藏侧边栏
+                if (mapDiv) mapDiv.style.display = 'none';   // 彻底隐藏地图
+                document.body.style.overflow = 'hidden';     // 禁止滚动
+            });
+        }
+    })();
+
+    // 2. 修改 initApp 中的检查逻辑
     async function initApp() {
+        // --- 新增：再次检查本地缓存 ---
+        const lastSubmitDate = localStorage.getItem('survey_last_submit_date');
+        const todayStr = getLocalTodayDate();
+
+        if (lastSubmitDate === todayStr) {
+            console.log("今日已提交，停止初始化。");
+            document.getElementById('submitted-mask').style.display = 'flex';
+            document.getElementById('sidebar').style.display = 'none';
+            return; // ⛔️ 直接终止后续代码（不加载配置，不加载地图）
+        }
+        // ---------------------------
+
         renderForm(); // 初始化表单
 
         // 等待 Firebase module 加载完毕
@@ -763,17 +812,21 @@
 <!--            btn.disabled = false; btn.innerText = "Retry";-->
 <!--        }-->
         if (result.success) {
-            // ✨ 修复：使用本地时间记录 (与 initApp 保持一致)
-            const d = new Date();
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            const todayStr = `${year}-${month}-${day}`;
-
+            // ✅ 1. 记录今天已提交
+            const todayStr = getLocalTodayDate();
             localStorage.setItem('survey_last_submit_date', todayStr);
 
-            alert("提交成功 / Submitted Successfully! ID: " + result.id);
-            location.reload();
+            // ✅ 2. 隐藏问卷和地图，显示感谢遮罩 (直接操作 DOM，不刷新!)
+            document.getElementById('sidebar').style.display = 'none';
+            document.getElementById('map').style.display = 'none';
+            document.getElementById('submitted-mask').style.display = 'flex';
+
+            // 可选：弹窗提示（也可以去掉，因为遮罩已经很明显了）
+            // alert("提交成功 / Submitted Successfully! ID: " + result.id);
+
+            // ❌ 重点：删掉下面这行代码！不要 reload！
+            // location.reload();
+
         } else {
             alert("Error: " + result.error);
             btn.disabled = false; btn.innerText = "Retry";
