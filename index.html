@@ -231,7 +231,7 @@
         <button class="lang-btn active" onclick="setLang('zh-tw')">繁體中文</button>
         <button class="lang-btn" onclick="setLang('zh-cn')">简体中文</button>
     </div>
-<!--    <div id="welcome-banner">歡迎參加調查</div>-->
+    <div id="welcome-banner">歡迎參加調查</div>
     <!-- 公告栏 -->
     <div id="announcement-bar"></div>
 
@@ -438,7 +438,7 @@
         },
         {
             id: 'rest_spot', type: 'checkbox',
-            label: { en: '4. Preferred resting spot', 'zh-tw': '4. 如果停下來休息，通常選擇哪裡？', 'zh-cn': '4. 如果停下来休息，通常选择哪里？' },
+            label: { en: '4. Preferred resting spot(Multiple)', 'zh-tw': '4. 如果停下來休息，通常選擇哪裡？(可多選)', 'zh-cn': '4. 如果停下来休息，通常选择哪里？(可多选)' },
             options: [
                 { val: 'bench', text: { en: 'Bench', 'zh-tw': '長椅或座椅區', 'zh-cn': '长椅或座椅区' } },
                 { val: 'lawn', text: { en: 'Lawn', 'zh-tw': '草坪或綠地', 'zh-cn': '草坪或绿地' } },
@@ -977,118 +977,56 @@
 
     // 2. 修改 initApp 中的检查逻辑
     async function initApp() {
-<!--        // -&#45;&#45; 新增：再次检查本地缓存 -&#45;&#45;-->
-<!--        const lastSubmitDate = localStorage.getItem('survey_last_submit_date');-->
-<!--        const todayStr = getLocalTodayDate();-->
+        // --- 新增：再次检查本地缓存 ---
+        const lastSubmitDate = localStorage.getItem('survey_last_submit_date');
+        const todayStr = getLocalTodayDate();
 
-<!--        if (lastSubmitDate === todayStr) {-->
-<!--            console.log("今日已提交，停止初始化。");-->
-<!--            document.getElementById('submitted-mask').style.display = 'flex';-->
-<!--            document.getElementById('sidebar').style.display = 'none';-->
-<!--            return; // ⛔️ 直接终止后续代码（不加载配置，不加载地图）-->
-<!--        }-->
-<!--        // -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
-
-<!--        renderForm(); // 初始化表单-->
-
-<!--        // 等待 Firebase module 加载完毕-->
-<!--        let config = null;-->
-<!--        if (window.fetchSurveyConfig) {-->
-<!--            config = await window.fetchSurveyConfig();-->
-<!--        }-->
-
-<!--        // 3.1 处理配置逻辑-->
-<!--        if (config) {-->
-<!--            console.log("Configuration loaded:", config);-->
-
-<!--            // -&#45;&#45; ✨ 每日限制检查逻辑 (修复时区版) -&#45;&#45;-->
-<!--            // 确保开关开启-->
-<!--            const isLimitEnabled = config.enabledDailyLimit === true || config.enabledDailyLimit === "true";-->
-
-<!--            if (isLimitEnabled) {-->
-<!--                // 获取本地时间 (解决 UTC 时差问题)-->
-<!--                const d = new Date();-->
-<!--                const year = d.getFullYear();-->
-<!--                const month = String(d.getMonth() + 1).padStart(2, '0');-->
-<!--                const day = String(d.getDate()).padStart(2, '0');-->
-<!--                const todayStr = `${year}-${month}-${day}`; // 格式：2026-01-16-->
-
-<!--                const lastSubmitDate = localStorage.getItem('survey_last_submit_date');-->
-
-<!--                console.log(`Limit Check: Today=${todayStr}, Last=${lastSubmitDate}`);-->
-
-<!--                if (lastSubmitDate === todayStr) {-->
-<!--                    // 如果记录的日期是今天，显示感谢层-->
-<!--                    document.getElementById('submitted-mask').style.display = 'flex';-->
-<!--                    document.body.style.overflow = 'hidden';-->
-<!--                    return; // ⛔️ 停止加载-->
-<!--                }-->
-<!--            }-->
-<!--            // &#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
-
-<!--            // 检查问卷是否开放-->
-<!--            if (config.isSurveyOpen === false) {-->
-<!--                document.getElementById('closed-mask').style.display = 'flex';-->
-<!--                document.body.style.overflow = 'hidden';-->
-<!--                return;-->
-<!--            }-->
-
-<!--            // 显示公告-->
-<!--            if (config.announcement) {-->
-<!--                const banner = document.getElementById('announcement-bar');-->
-<!--                banner.innerText = "📢 " + config.announcement;-->
-<!--                banner.style.display = 'block';-->
-<!--            }-->
-<!--        }-->
+        if (lastSubmitDate === todayStr) {
+            console.log("今日已提交，停止初始化。");
+            document.getElementById('submitted-mask').style.display = 'flex';
+            document.getElementById('sidebar').style.display = 'none';
+            return; // ⛔️ 直接终止后续代码（不加载配置，不加载地图）
+        }
+        // ---------------------------
 
         renderForm(); // 初始化表单
 
-        // 1. 先等待配置加载
+        // 等待 Firebase module 加载完毕
         let config = null;
         if (window.fetchSurveyConfig) {
             config = await window.fetchSurveyConfig();
         }
 
-        // 2. 核心检查逻辑
+        // 3.1 处理配置逻辑
         if (config) {
             console.log("Configuration loaded:", config);
 
-            // 获取今日日期
-            const todayStr = getLocalTodayDate();
-
-            // 从本地读取记录
-            const lastDate = localStorage.getItem('survey_last_submit_date');
-            let dailyCount = parseInt(localStorage.getItem('survey_daily_count') || '0');
-
-            // 如果日期跨天了，重置计数器
-            if (lastDate !== todayStr) {
-                dailyCount = 0;
-                localStorage.setItem('survey_daily_count', '0');
-            }
-
-            // --- 每天 N 次限制逻辑 ---
-            const isLimitEnabled = config.enabledDailyLimit === true;
-            // 获取后台设置的次数，如果没有设置，默认为 1 次
-            const maxLimit = (typeof config.maxDailySubmissions === 'number') ? config.maxDailySubmissions : 1;
+            // --- ✨ 每日限制检查逻辑 (修复时区版) ---
+            // 确保开关开启
+            const isLimitEnabled = config.enabledDailyLimit === true || config.enabledDailyLimit === "true";
 
             if (isLimitEnabled) {
-                console.log(`Limit Check: Today=${todayStr}, Count=${dailyCount}, Max=${maxLimit}`);
+                // 获取本地时间 (解决 UTC 时差问题)
+                const d = new Date();
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const todayStr = `${year}-${month}-${day}`; // 格式：2026-01-16
 
-                // 如果当前次数已经达到或超过限制 -> 封锁
-                if (dailyCount >= maxLimit) {
+                const lastSubmitDate = localStorage.getItem('survey_last_submit_date');
+
+                console.log(`Limit Check: Today=${todayStr}, Last=${lastSubmitDate}`);
+
+                if (lastSubmitDate === todayStr) {
+                    // 如果记录的日期是今天，显示感谢层
                     document.getElementById('submitted-mask').style.display = 'flex';
-                    // 更新遮罩上的文案，告知用户
-                    const maskTitle = document.querySelector('#submitted-mask h2:nth-of-type(2)');
-                    const maskDesc = document.querySelector('#submitted-mask p');
-                    if(maskTitle) maskTitle.innerText = "Quota Exceeded / 次數已達上限";
-                    if(maskDesc) maskDesc.innerHTML = `You have reached the daily limit (${maxLimit} times).<br>您今日的填寫次數已達上限（${maxLimit}次）。`;
-
-                    document.getElementById('sidebar').style.display = 'none';
+                    document.body.style.overflow = 'hidden';
                     return; // ⛔️ 停止加载
                 }
             }
+            // ------------------------------------
 
-            // 检查问卷是否开放 (总开关)
+            // 检查问卷是否开放
             if (config.isSurveyOpen === false) {
                 document.getElementById('closed-mask').style.display = 'flex';
                 document.body.style.overflow = 'hidden';
@@ -1102,6 +1040,82 @@
                 banner.style.display = 'block';
             }
         }
+
+<!--        renderForm(); // 初始化表单-->
+
+<!--        // 1. 先等待配置加载-->
+<!--        let config = null;-->
+<!--        try {-->
+<!--            if (window.fetchSurveyConfig) {-->
+<!--                config = await window.fetchSurveyConfig();-->
+<!--            }-->
+<!--        } catch (e) {-->
+<!--            console.error("❌ Firebase 配置加载失败:", e);-->
+<!--        }-->
+
+<!--        // 2. 核心检查逻辑-->
+<!--        if (config) {-->
+<!--            console.log("✅ 配置已加载:", config);-->
+
+<!--            // 获取今日日期-->
+<!--            const todayStr = getLocalTodayDate();-->
+
+<!--            // 从本地读取记录-->
+<!--            const lastDate = localStorage.getItem('survey_last_submit_date');-->
+<!--            let dailyCount = parseInt(localStorage.getItem('survey_daily_count') || '0');-->
+
+<!--            console.log(`🔍 状态检查: 上次日期=${lastDate}, 今日=${todayStr}, 当前计数=${dailyCount}`);-->
+
+<!--            // 如果日期跨天了（或者上次日期是null），重置计数器-->
+<!--            if (lastDate !== todayStr) {-->
+<!--                console.log("📅 日期变更，重置计数器为 0");-->
+<!--                dailyCount = 0;-->
+<!--                localStorage.setItem('survey_daily_count', '0');-->
+<!--                // 注意：这里不清除 last_submit_date，只重置计数-->
+<!--            }-->
+
+<!--            // -&#45;&#45; 每天 N 次限制逻辑 -&#45;&#45;-->
+<!--            // 🔧 修改：放宽判断，兼容字符串 "true" 和布尔值 true-->
+<!--            const isLimitEnabled = String(config.enabledDailyLimit) === 'true';-->
+
+<!--            // 获取后台设置的次数，如果没有设置，默认为 1 次-->
+<!--            const maxLimit = (typeof config.maxDailySubmissions === 'number') ? config.maxDailySubmissions : 1;-->
+
+<!--            if (isLimitEnabled) {-->
+<!--                console.log(`🛡️ 限制检查: Count(${dailyCount}) >= Max(${maxLimit}) ? ${dailyCount >= maxLimit}`);-->
+
+<!--                // 如果当前次数已经达到或超过限制 -> 封锁-->
+<!--                if (dailyCount >= maxLimit) {-->
+<!--                    document.getElementById('submitted-mask').style.display = 'flex';-->
+
+<!--                    // 更新遮罩上的文案-->
+<!--                    const maskTitle = document.querySelector('#submitted-mask h2:nth-of-type(2)');-->
+<!--                    const maskDesc = document.querySelector('#submitted-mask p');-->
+<!--                    if(maskTitle) maskTitle.innerText = "Quota Exceeded / 次數已達上限";-->
+<!--                    if(maskDesc) maskDesc.innerHTML = `You have reached the daily limit (${maxLimit} times).<br>您今日的填寫次數已達上限（${maxLimit}次）。`;-->
+
+<!--                    document.getElementById('sidebar').style.display = 'none';-->
+<!--                    return; // ⛔️ 停止加载-->
+<!--                }-->
+<!--            }-->
+
+<!--            // 检查问卷是否开放-->
+<!--            // 🔧 修改：同样放宽判断-->
+<!--            if (String(config.isSurveyOpen) === 'false') {-->
+<!--                document.getElementById('closed-mask').style.display = 'flex';-->
+<!--                document.body.style.overflow = 'hidden';-->
+<!--                return;-->
+<!--            }-->
+
+<!--            // 显示公告-->
+<!--            if (config.announcement) {-->
+<!--                const banner = document.getElementById('announcement-bar');-->
+<!--                banner.innerText = "📢 " + config.announcement;-->
+<!--                banner.style.display = 'block';-->
+<!--            }-->
+<!--        } else {-->
+<!--            console.warn("⚠️ 未读取到 Firebase 配置，跳过限制检查。");-->
+<!--        }-->
 
         // 3.2 确定地图样式
         let mapStyleUrl = 'mapbox://styles/mapbox/streets-v11';
@@ -2907,36 +2921,53 @@
             lang: currentLang
         });
 
-<!--        if (result.success) {-->
-<!--            const todayStr = new Date().toISOString().split('T')[0];-->
-<!--            localStorage.setItem('survey_last_submit_date', todayStr);-->
-
-<!--            alert("提交成功 / Submitted Successfully! ID: " + result.id);-->
-<!--            location.reload();-->
-<!--        } else {-->
-<!--            alert("Error: " + result.error);-->
-<!--            btn.disabled = false; btn.innerText = "Retry";-->
-<!--        }-->
         if (result.success) {
-            // ✅ 1. 记录今天已提交
-            const todayStr = getLocalTodayDate();
+            const todayStr = new Date().toISOString().split('T')[0];
             localStorage.setItem('survey_last_submit_date', todayStr);
 
-            // ✅ 2. 隐藏问卷和地图，显示感谢遮罩 (直接操作 DOM，不刷新!)
-            document.getElementById('sidebar').style.display = 'none';
-            document.getElementById('map').style.display = 'none';
-            document.getElementById('submitted-mask').style.display = 'flex';
-
-            // 可选：弹窗提示（也可以去掉，因为遮罩已经很明显了）
-            // alert("提交成功 / Submitted Successfully! ID: " + result.id);
-
-            // ❌ 重点：删掉下面这行代码！不要 reload！
-            // location.reload();
-
+            alert("提交成功 / Submitted Successfully! ID: " + result.id);
+            location.reload();
         } else {
             alert("Error: " + result.error);
             btn.disabled = false; btn.innerText = "Retry";
         }
+<!--        if (result.success) {-->
+<!--            // ✅ 1. 获取今日日期-->
+<!--            const todayStr = getLocalTodayDate();-->
+
+<!--            // ✅ 2. 读取旧的计数 (防止是 NaN)-->
+<!--            let currentCount = parseInt(localStorage.getItem('survey_daily_count') || '0');-->
+<!--            const lastDate = localStorage.getItem('survey_last_submit_date');-->
+
+<!--            // 如果本地记录的日期不是今天（比如昨天填过），则重置计数为 0-->
+<!--            if (lastDate !== todayStr) {-->
+<!--                currentCount = 0;-->
+<!--            }-->
+
+<!--            // ✅ 3. 计数器 +1-->
+<!--            currentCount++;-->
+
+<!--            // ✅ 4. 保存到本地缓存-->
+<!--            localStorage.setItem('survey_last_submit_date', todayStr);-->
+<!--            localStorage.setItem('survey_daily_count', currentCount.toString());-->
+
+<!--            console.log(`提交成功！今日已填次数: ${currentCount}`);-->
+
+<!--            // ✅ 5. 隐藏问卷和地图，显示感谢遮罩 (不刷新页面)-->
+<!--            document.getElementById('sidebar').style.display = 'none';-->
+<!--            document.getElementById('map').style.display = 'none';-->
+<!--            document.getElementById('submitted-mask').style.display = 'flex';-->
+
+<!--            // 更新遮罩上的文字提示 (可选)-->
+<!--            const maskDesc = document.querySelector('#submitted-mask p');-->
+<!--            if (maskDesc) {-->
+<!--                maskDesc.innerHTML = `You have submitted ${currentCount} time(s) today.<br>您今天已成功提交 ${currentCount} 次。`;-->
+<!--            }-->
+
+<!--        } else {-->
+<!--            alert("Error: " + result.error);-->
+<!--            btn.disabled = false; btn.innerText = "Retry";-->
+<!--        }-->
     });
 </script>
 </body>
