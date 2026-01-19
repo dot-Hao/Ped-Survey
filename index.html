@@ -206,6 +206,76 @@
             background-color: rgba(0,0,0,0.1);
             border-radius: 50%;
         }
+
+        /* 转盘样式 */
+        .wheel-container {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+        }
+        .wheel {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 5px solid #fff;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    background: #333;
+    overflow: hidden;
+    transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99); /* 旋转动画缓动 */
+        }
+        .wheel .segment {
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    background: var(--clr);
+    transform-origin: bottom right;
+    transform: rotate(calc(60deg * var(--i)));
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 0); /* 切割扇形 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    left: 0;
+    top: 0;
+        }
+        .wheel .segment span {
+    position: absolute;
+    transform: rotate(45deg);
+    top: 60px;
+    left: 80px;
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: #333;
+        }
+        /* 指针 */
+        .pointer {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 40px;
+    background: #e74c3c;
+    clip-path: polygon(50% 100%, 0 0, 100% 0);
+    z-index: 10;
+        }
+        /* 抽奖按钮 */
+        #spin-btn {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    background: white;
+    border-radius: 50%;
+    border: 4px solid #333;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
     </style>
 </head>
 <body>
@@ -223,6 +293,34 @@
         You have already submitted the survey today.<br>
         您今天已經填寫過問卷了，感謝您的寶貴意見。
     </p>
+</div>
+
+<div id="lucky-draw-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 99999; display: none; justify-content: center; align-items: center; flex-direction: column;">
+
+    <div class="wheel-container">
+        <div class="pointer"></div>
+        <div class="wheel" id="wheel">
+            <div class="segment" style="--i:1; --clr:#ffd700;"><span>$50</span></div>
+            <div class="segment" style="--i:2; --clr:#ffffff;"><span>谢谢</span></div>
+            <div class="segment" style="--i:3; --clr:#3498db;"><span>$30</span></div>
+            <div class="segment" style="--i:4; --clr:#ffffff;"><span>谢谢</span></div>
+            <div class="segment" style="--i:5; --clr:#3498db;"><span>$30</span></div>
+            <div class="segment" style="--i:6; --clr:#ffffff;"><span>谢谢</span></div>
+        </div>
+        <button id="spin-btn">開始抽獎</button>
+    </div>
+
+    <div id="prize-form" style="display:none; background:white; padding:20px; border-radius:10px; text-align:center; margin-top:20px; max-width:80%;">
+        <h3 id="prize-title" style="color:#e74c3c;">恭喜獲得 HK$30！</h3>
+        <p>請輸入您的 FPS (轉數快) 識別碼或電話號碼以接收獎勵：</p>
+        <input type="text" id="payment-info" placeholder="例: 12345678" style="width:100%; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:5px;">
+        <button onclick="submitPrizeInfo()" class="btn-success">確認領獎</button>
+    </div>
+
+    <div id="final-msg" style="display:none; color:white; text-align:center; margin-top:20px;">
+        <h2>感謝您的參與！</h2>
+        <button onclick="location.reload()" style="padding:10px 20px; border-radius:5px; border:none; cursor:pointer;">關閉</button>
+    </div>
 </div>
 
 <div id="sidebar">
@@ -298,6 +396,19 @@
             return { success: true, id: docRef.id };
         } catch (e) {
             return { success: false, error: e.message };
+        }
+    };
+
+    // ✅ 新增：更新中奖信息
+    window.updateSurveyWithPrize = async (docId, prizeData) => {
+        if (!db || !docId) return false;
+        try {
+            const docRef = doc(db, "victoria_harbour_survey", docId);
+            await updateDoc(docRef, prizeData);
+            return true;
+        } catch (e) {
+            console.error("Error updating prize:", e);
+            return false;
         }
     };
 
@@ -880,6 +991,7 @@
     let map;
     let userStopMarkers = [];
     let isDrawing = false, drawMode = false, pathCoordinates = [], stopsData = [];
+    let isDrawingFinished = false;
     const statusBar = document.getElementById('status-bar');
 
 <!--    async function initApp() {-->
@@ -2718,6 +2830,8 @@
             drawMode = true;
             isPaused = false;
 
+            isDrawingFinished = false;
+
             // --- 关键修复：点击开始时，确保数据是空的 ---
             pathCoordinates = [];
             map.getSource('route').setData({ 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [] } });
@@ -2764,6 +2878,10 @@
                 alert("Line too short / 線路太短");
                 return;
             }
+
+            // ✅ 新增：标记为已完成
+            isDrawingFinished = true;
+
             endDraw();
             // 隐藏暂停按钮，只留清除
             btnTogglePan.style.display = 'none';
@@ -2772,6 +2890,8 @@
 
         // 4. 【核心修改】清除重画：确保彻底复原
         btnClear.addEventListener('click', () => {
+            // ✅ 新增：重置完成状态
+            isDrawingFinished = false;
             // 清空数据
             pathCoordinates = [];
             stopsData = [];
@@ -2891,8 +3011,23 @@
     // ==========================================
     document.getElementById('btn-submit').addEventListener('click', async () => {
         const btn = document.getElementById('btn-submit');
-        const formData = {};
 
+        // --- 1. 验证地图绘制状态 ---
+        if (!isDrawingFinished || pathCoordinates.length === 0) {
+            alert(currentLang === 'en'
+                ? "Please draw your route AND click 'Finish Drawing'!"
+                : (currentLang === 'zh-cn' ? "请绘制路线并点击绿色“完成绘制”按钮！" : "請繪製路線並點擊綠色「完成繪製」按鈕！"));
+
+            // 滚动到底部让用户看到地图
+            document.getElementById('lbl-map-task').scrollIntoView({behavior: "smooth"});
+            return;
+        }
+
+        // --- 2. 验证问卷题目是否全部完成 ---
+        const formData = {};
+        let isFormComplete = true; // 标记表单是否完整
+
+        // 收集数据
         document.querySelectorAll('input:checked').forEach(input => {
             const name = input.name;
             const val = input.value;
@@ -2904,14 +3039,63 @@
             }
         });
 
-        if (pathCoordinates.length === 0) {
-            alert(currentLang === 'en'
-                ? "Please draw your route on the map!"
-                : (currentLang === 'zh-cn' ? "请在第三部分绘制您的行走路线！" : "請在第三部分繪製您的行走路線！"));
-            return;
+        // 遍历配置进行校验
+        for (const q of surveyConfig) {
+            // 跳过标题类型的题目
+            if (q.type === 'header') continue;
+
+            // 校验矩阵题 (Matrix)
+            if (q.type === 'matrix') {
+                for (const row of q.rows) {
+                    const fieldName = `${q.id}_${row.id}`;
+                    if (!formData[fieldName]) {
+                        isFormComplete = false;
+                        // 提示用户哪一题没填
+                        alert(currentLang === 'en'
+                            ? `Please answer: ${q.label.en} - ${row.text.en}`
+                            : `請回答：${q.label[currentLang]} - ${row.text[currentLang]}`);
+                        return; // 遇到一个没填就停止提交
+                    }
+                }
+            }
+            // 校验单选/多选 (Radio/Checkbox)
+            else {
+                // 如果是“其他”选项的输入框，不需要在这里校验，因为上面已经校验了是否选中了选项
+                // 这里只检查主题目是否有选中值
+                if (!formData[q.id]) {
+                    isFormComplete = false;
+                    alert(currentLang === 'en'
+                        ? `Please answer: ${q.label.en}`
+                        : `請回答：${q.label[currentLang]}`);
+
+                    // 滚动到未填写的题目位置 (稍微往上一点避免被遮挡)
+                    const el = document.getElementsByName(q.id)[0];
+                    if(el) el.closest('.q-item').scrollIntoView({behavior: "smooth", block: "center"});
+
+                    return;
+                }
+
+                // 特殊检查：如果选了“其他(other)”，则必须填写输入框
+                if ((Array.isArray(formData[q.id]) && formData[q.id].includes('other')) || formData[q.id] === 'other') {
+                    const detailInput = document.querySelector(`input[name="${q.id}_detail"]`);
+                    if (detailInput && detailInput.value.trim() === '') {
+                        alert(currentLang === 'en' ? "Please specify 'Other'." : "請填寫「其他」的具體內容。");
+                        detailInput.focus();
+                        return;
+                    }
+                }
+            }
         }
 
+        // --- 3. 全部验证通过，执行提交 ---
         btn.disabled = true; btn.innerText = "...";
+
+        // 将“其他”输入框的内容合并到 formData (如果之前没自动合并的话)
+        document.querySelectorAll('.other-input').forEach(input => {
+            if (input.value.trim() !== '') {
+                formData[input.name] = input.value.trim();
+            }
+        });
 
         const result = await window.submitToFirebase({
             answers: formData,
@@ -2922,15 +3106,96 @@
         });
 
         if (result.success) {
-            const todayStr = new Date().toISOString().split('T')[0];
-            localStorage.setItem('survey_last_submit_date', todayStr);
+            // 1. 记录今天已提交
+            const todayStr = getLocalTodayDate();
+            let currentCount = parseInt(localStorage.getItem('survey_daily_count') || '0');
+            const lastDate = localStorage.getItem('survey_last_submit_date');
+            if (lastDate !== todayStr) currentCount = 0;
+            currentCount++;
 
-            alert("提交成功 / Submitted Successfully! ID: " + result.id);
-            location.reload();
+            localStorage.setItem('survey_last_submit_date', todayStr);
+            localStorage.setItem('survey_daily_count', currentCount.toString());
+
+            // 保存当前的文档 ID
+            window.currentSurveyDocId = result.id;
+
+            // 2. 隐藏问卷，显示抽奖转盘
+            document.getElementById('sidebar').style.display = 'none';
+            document.getElementById('map').style.display = 'none';
+            document.getElementById('lucky-draw-modal').style.display = 'flex';
+
         } else {
             alert("Error: " + result.error);
             btn.disabled = false; btn.innerText = "Retry";
         }
+<!--        const btn = document.getElementById('btn-submit');-->
+<!--        const formData = {};-->
+
+<!--        document.querySelectorAll('input:checked').forEach(input => {-->
+<!--            const name = input.name;-->
+<!--            const val = input.value;-->
+<!--            if (formData[name]) {-->
+<!--                if (!Array.isArray(formData[name])) formData[name] = [formData[name]];-->
+<!--                formData[name].push(val);-->
+<!--            } else {-->
+<!--                formData[name] = val;-->
+<!--            }-->
+<!--        });-->
+
+<!--        if (pathCoordinates.length === 0) {-->
+<!--            alert(currentLang === 'en'-->
+<!--                ? "Please draw your route on the map!"-->
+<!--                : (currentLang === 'zh-cn' ? "请在第三部分绘制您的行走路线！" : "請在第三部分繪製您的行走路線！"));-->
+<!--            return;-->
+<!--        }-->
+
+<!--        btn.disabled = true; btn.innerText = "...";-->
+
+<!--        const result = await window.submitToFirebase({-->
+<!--            answers: formData,-->
+<!--            path: JSON.stringify(pathCoordinates),-->
+<!--            stops: stopsData,-->
+<!--            timestamp: new Date().toISOString(),-->
+<!--            lang: currentLang-->
+<!--        });-->
+
+<!--        if (result.success) {-->
+<!--            const todayStr = new Date().toISOString().split('T')[0];-->
+<!--            localStorage.setItem('survey_last_submit_date', todayStr);-->
+
+<!--            alert("提交成功 / Submitted Successfully! ID: " + result.id);-->
+<!--            location.reload();-->
+<!--        } else {-->
+<!--            alert("Error: " + result.error);-->
+<!--            btn.disabled = false; btn.innerText = "Retry";-->
+<!--        }-->
+
+<!--        if (result.success) {-->
+<!--            // 1. 记录今天已提交-->
+<!--            const todayStr = getLocalTodayDate();-->
+<!--            let currentCount = parseInt(localStorage.getItem('survey_daily_count') || '0');-->
+<!--            const lastDate = localStorage.getItem('survey_last_submit_date');-->
+<!--            if (lastDate !== todayStr) currentCount = 0;-->
+<!--            currentCount++;-->
+
+<!--            localStorage.setItem('survey_last_submit_date', todayStr);-->
+<!--            localStorage.setItem('survey_daily_count', currentCount.toString());-->
+
+<!--            // 保存当前的文档 ID，以便后续更新中奖信息-->
+<!--            window.currentSurveyDocId = result.id;-->
+
+<!--            // 2. 隐藏问卷，显示抽奖转盘 (而不是直接显示感谢遮罩)-->
+<!--            document.getElementById('sidebar').style.display = 'none';-->
+<!--            document.getElementById('map').style.display = 'none';-->
+
+<!--            // 打开抽奖界面-->
+<!--            document.getElementById('lucky-draw-modal').style.display = 'flex';-->
+
+<!--        } else {-->
+<!--            alert("Error: " + result.error);-->
+<!--            btn.disabled = false; btn.innerText = "Retry";-->
+<!--        }-->
+
 <!--        if (result.success) {-->
 <!--            // ✅ 1. 获取今日日期-->
 <!--            const todayStr = getLocalTodayDate();-->
@@ -2943,7 +3208,7 @@
 <!--            if (lastDate !== todayStr) {-->
 <!--                currentCount = 0;-->
 <!--            }-->
-
+    });
 <!--            // ✅ 3. 计数器 +1-->
 <!--            currentCount++;-->
 
@@ -2968,7 +3233,111 @@
 <!--            alert("Error: " + result.error);-->
 <!--            btn.disabled = false; btn.innerText = "Retry";-->
 <!--        }-->
-    });
+
+<!--    // ==========================================-->
+<!--    // 🎰 抽奖逻辑-->
+<!--    // ==========================================-->
+
+<!--    // 奖项配置 (6个扇区，对应 CSS 中的 var(&#45;&#45;i))-->
+<!--    // 1: $50, 2: 谢谢, 3: $30, 4: 谢谢, 5: $30, 6: 谢谢-->
+<!--    // 注意：转盘旋转后，指针指向上方。如果顺时针旋转，最终停在上面的扇区索引计算比较复杂。-->
+<!--    // 为了简单，我们预设好每个奖项对应的旋转角度范围。-->
+
+<!--    const spinBtn = document.getElementById('spin-btn');-->
+<!--    const wheel = document.getElementById('wheel');-->
+<!--    let hasSpun = false;-->
+
+<!--    spinBtn.addEventListener('click', () => {-->
+<!--        if (hasSpun) return;-->
+<!--        hasSpun = true;-->
+<!--        spinBtn.disabled = true;-->
+
+<!--        // -&#45;&#45; 1. 计算概率 -&#45;&#45;-->
+<!--        const rand = Math.random() * 100; // 0 - 100-->
+<!--        let prizeType = 'none';-->
+<!--        let stopAngle = 0;-->
+<!--        let message = "";-->
+
+<!--        // 概率分布:-->
+<!--        // 0-5 (5%): $50-->
+<!--        // 5-20 (15%): $30-->
+<!--        // 20-100 (80%): 谢谢参与-->
+
+<!--        if (rand < 5) {-->
+<!--            // 中 $50 (对应扇区 1)-->
+<!--            prizeType = '50';-->
+<!--            stopAngle = 360 * 5 + (360 - 60); // 多转5圈，停在扇区1 (大概300度位置)-->
+<!--            message = "恭喜獲得 HK$50！";-->
+<!--        } else if (rand < 20) {-->
+<!--            // 中 $30 (对应扇区 3 或 5)-->
+<!--            prizeType = '30';-->
+<!--            // 随机选扇区3(180度) 或 扇区5(60度)-->
+<!--            const sector = Math.random() > 0.5 ? 180 : 60;-->
+<!--            stopAngle = 360 * 5 + (360 - sector);-->
+<!--            message = "恭喜獲得 HK$30！";-->
+<!--        } else {-->
+<!--            // 不中奖 (对应扇区 2, 4, 6)-->
+<!--            prizeType = 'none';-->
+<!--            // 随机选扇区2(240度), 4(120度), 6(0度)-->
+<!--            const sectors = [240, 120, 0];-->
+<!--            const sector = sectors[Math.floor(Math.random() * sectors.length)];-->
+<!--            stopAngle = 360 * 5 + (360 - sector);-->
+<!--        }-->
+
+<!--        // -&#45;&#45; 2. 执行动画 -&#45;&#45;-->
+<!--        // 增加一点随机偏移 (+/- 20度) 让指针指在扇区中间-->
+<!--        stopAngle += Math.floor(Math.random() * 40) - 20;-->
+
+<!--        wheel.style.transform = `rotate(${stopAngle}deg)`;-->
+
+<!--        // -&#45;&#45; 3. 动画结束后处理 -&#45;&#45;-->
+<!--        setTimeout(() => {-->
+<!--            if (prizeType !== 'none') {-->
+<!--                // 中奖了：显示填写信息框-->
+<!--                document.getElementById('prize-title').innerText = message;-->
+<!--                document.getElementById('prize-form').style.display = 'block';-->
+<!--                document.querySelector('.wheel-container').style.display = 'none'; // 隐藏转盘以免干扰-->
+<!--                window.winningPrize = prizeType; // 暂存奖品金额-->
+<!--            } else {-->
+<!--                // 没中奖：显示谢谢-->
+<!--                document.getElementById('final-msg').style.display = 'block';-->
+<!--                document.querySelector('.wheel-container').style.display = 'none';-->
+<!--            }-->
+<!--        }, 4000); // 4秒动画时间-->
+<!--    });-->
+
+<!--    // -&#45;&#45; 提交领奖信息 -&#45;&#45;-->
+<!--    window.submitPrizeInfo = async () => {-->
+<!--        const paymentInfo = document.getElementById('payment-info').value;-->
+<!--        if (!paymentInfo) {-->
+<!--            alert("請輸入領獎賬號 / Please enter payment info");-->
+<!--            return;-->
+<!--        }-->
+
+<!--        const btn = document.querySelector('#prize-form button');-->
+<!--        btn.disabled = true;-->
+<!--        btn.innerText = "提交中...";-->
+
+<!--        // 引入 Firebase 函数 (这里假设您已经在顶部 import 了 updateDoc 和 doc)-->
+<!--        // 注意：您需要在顶部的 type="module" 脚本块中 export 这两个函数，或者在这里重新引用-->
+<!--        // 为了方便，我们在 window 上挂载一个更新函数-->
+
+<!--        if (window.updateSurveyWithPrize) {-->
+<!--            const success = await window.updateSurveyWithPrize(window.currentSurveyDocId, {-->
+<!--                prizeWon: window.winningPrize,-->
+<!--                paymentInfo: paymentInfo,-->
+<!--                prizeStatus: 'pending' // 待转账-->
+<!--            });-->
+
+<!--            if (success) {-->
+<!--                alert("提交成功！我們將在核實後進行轉賬。");-->
+<!--                location.reload();-->
+<!--            } else {-->
+<!--                alert("提交失敗，請截圖聯繫管理員。");-->
+<!--                btn.disabled = false;-->
+<!--            }-->
+<!--        }-->
+<!--    };-->
 </script>
 </body>
 </html>
