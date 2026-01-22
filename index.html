@@ -207,7 +207,75 @@
             border-radius: 50%;
         }
 
-        /* 转盘样式 */
+<!--        /* 转盘样式 */-->
+<!--        .wheel-container {-->
+<!--    position: relative;-->
+<!--    width: 300px;-->
+<!--    height: 300px;-->
+<!--    display: flex;-->
+<!--    justify-content: center;-->
+<!--    align-items: center;-->
+<!--        }-->
+<!--        .wheel {-->
+<!--    position: absolute;-->
+<!--    width: 100%;-->
+<!--    height: 100%;-->
+<!--    border-radius: 50%;-->
+<!--    border: 5px solid #fff;-->
+<!--    box-shadow: 0 0 15px rgba(0,0,0,0.5);-->
+<!--    background: #333;-->
+<!--    overflow: hidden;-->
+<!--    transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99); /* 旋转动画缓动 */-->
+<!--        }-->
+<!--        .wheel .segment {-->
+<!--    position: absolute;-->
+<!--    width: 50%;-->
+<!--    height: 50%;-->
+<!--    background: var(&#45;&#45;clr);-->
+<!--    transform-origin: bottom right;-->
+<!--    transform: rotate(calc(60deg * var(&#45;&#45;i)));-->
+<!--    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 0); /* 切割扇形 */-->
+<!--    display: flex;-->
+<!--    justify-content: center;-->
+<!--    align-items: center;-->
+<!--    left: 0;-->
+<!--    top: 0;-->
+<!--        }-->
+<!--        .wheel .segment span {-->
+<!--    position: absolute;-->
+<!--    transform: rotate(45deg);-->
+<!--    top: 60px;-->
+<!--    left: 80px;-->
+<!--    font-weight: bold;-->
+<!--    font-size: 1.2rem;-->
+<!--    color: #333;-->
+<!--        }-->
+<!--        /* 指针 */-->
+<!--        .pointer {-->
+<!--    position: absolute;-->
+<!--    top: -20px;-->
+<!--    left: 50%;-->
+<!--    transform: translateX(-50%);-->
+<!--    width: 30px;-->
+<!--    height: 40px;-->
+<!--    background: #e74c3c;-->
+<!--    clip-path: polygon(50% 100%, 0 0, 100% 0);-->
+<!--    z-index: 10;-->
+<!--        }-->
+<!--        /* 抽奖按钮 */-->
+<!--        #spin-btn {-->
+<!--    position: absolute;-->
+<!--    width: 80px;-->
+<!--    height: 80px;-->
+<!--    background: white;-->
+<!--    border-radius: 50%;-->
+<!--    border: 4px solid #333;-->
+<!--    font-weight: bold;-->
+<!--    cursor: pointer;-->
+<!--    z-index: 10;-->
+<!--    box-shadow: 0 5px 15px rgba(0,0,0,0.2);-->
+<!--        }-->
+        /* ================== ✅ 新的转盘样式 (修复黑色背景和对齐问题) ================== */
         .wheel-container {
     position: relative;
     width: 300px;
@@ -215,66 +283,86 @@
     display: flex;
     justify-content: center;
     align-items: center;
-        }
-        .wheel {
-    position: absolute;
-    width: 100%;
-    height: 100%;
+    /* 增加一个白色外边框装饰 */
+    padding: 5px;
+    background: white;
     border-radius: 50%;
-    border: 5px solid #fff;
-    box-shadow: 0 0 15px rgba(0,0,0,0.5);
-    background: #333;
-    overflow: hidden;
-    transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99); /* 旋转动画缓动 */
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
         }
-        .wheel .segment {
+
+        .wheel {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            overflow: hidden;
+            transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1);
+
+            /* ✅ 核心修改：移除黑色背景，使用圆锥渐变填充 */
+            background-color: transparent; /* 确保没有黑色底色 */
+            border: none; /* 移除边框 */
+
+            /* 6个扇区，每个60度，颜色交替 */
+            background: conic-gradient(
+                #ffd700 0deg 60deg,   /* $20 (金) */
+                #ffffff 60deg 120deg, /* 谢谢 (白) */
+                #3498db 120deg 180deg,/* $10 (蓝) */
+                #ffffff 180deg 240deg,/* 谢谢 (白) */
+                #3498db 240deg 300deg,/* $10 (蓝) */
+                #ffffff 300deg 360deg /* 谢谢 (白) */
+            );
+
+            box-shadow: inset 0 0 0 2px rgba(0,0,0,0.05); /* 轻微内描边增加质感 */
+        }
+
+        /* 新的文字标签样式 */
+        .wheel .label {
     position: absolute;
-    width: 50%;
-    height: 50%;
-    background: var(--clr);
-    transform-origin: bottom right;
-    transform: rotate(calc(60deg * var(--i)));
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 0); /* 切割扇形 */
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    left: 0;
-    top: 0;
-        }
-        .wheel .segment span {
-    position: absolute;
-    transform: rotate(45deg);
-    top: 60px;
-    left: 80px;
     font-weight: bold;
     font-size: 1.2rem;
     color: #333;
+    /* 文字阴影让白底上的文字更清晰 */
+    text-shadow: 0 1px 2px rgba(255,255,255,0.8);
         }
-        /* 指针 */
+
+        /* 指针样式微调 */
         .pointer {
     position: absolute;
-    top: -20px;
+    top: -25px; /* 稍微向上提一点 */
     left: 50%;
     transform: translateX(-50%);
-    width: 30px;
-    height: 40px;
+    width: 35px;
+    height: 45px;
     background: #e74c3c;
     clip-path: polygon(50% 100%, 0 0, 100% 0);
     z-index: 10;
+    filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3)); /* 给指针加个阴影 */
         }
-        /* 抽奖按钮 */
+
+        /* 按钮样式微调 */
         #spin-btn {
+    /* ... 保持原有基本样式，微调阴影 ... */
     position: absolute;
     width: 80px;
     height: 80px;
     background: white;
     border-radius: 50%;
-    border: 4px solid #333;
+    border: 4px solid #e74c3c; /* 改成红色边框呼应指针 */
     font-weight: bold;
     cursor: pointer;
     z-index: 10;
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    font-size: 1rem;
+    color: #e74c3c;
         }
+/* ========================================================================== */
 
     </style>
 </head>
@@ -300,22 +388,26 @@
     <div class="wheel-container">
         <div class="pointer"></div>
         <div class="wheel" id="wheel">
-            <div class="segment" style="--i:1; --clr:#ffd700;"><span>$50</span></div>
-            <div class="segment" style="--i:2; --clr:#ffffff;"><span>谢谢</span></div>
-            <div class="segment" style="--i:3; --clr:#3498db;"><span>$30</span></div>
-            <div class="segment" style="--i:4; --clr:#ffffff;"><span>谢谢</span></div>
-            <div class="segment" style="--i:5; --clr:#3498db;"><span>$30</span></div>
-            <div class="segment" style="--i:6; --clr:#ffffff;"><span>谢谢</span></div>
+            <div class="label" style="transform: rotate(-60deg) translate(100px) rotate(60deg);">$20</div>
+
+            <div class="label" style="transform: rotate(0deg) translate(100px) rotate(0deg);">謝謝</div>
+
+            <div class="label" style="transform: rotate(60deg) translate(100px) rotate(-60deg);">$10</div>
+
+            <div class="label" style="transform: rotate(120deg) translate(100px) rotate(-120deg);">謝謝</div>
+
+            <div class="label" style="transform: rotate(180deg) translate(100px) rotate(-180deg);">$10</div>
+
+            <div class="label" style="transform: rotate(240deg) translate(100px) rotate(-240deg);">謝謝</div>
         </div>
         <button id="spin-btn">開始抽獎</button>
     </div>
-
-    <div id="prize-form" style="display:none; background:white; padding:20px; border-radius:10px; text-align:center; margin-top:20px; max-width:80%;">
-        <h3 id="prize-title" style="color:#e74c3c;">恭喜獲得 HK$30！</h3>
-        <p>請輸入您的 FPS (轉數快) 識別碼或電話號碼以接收獎勵：</p>
-        <input type="text" id="payment-info" placeholder="例: 12345678" style="width:100%; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:5px;">
-        <button onclick="submitPrizeInfo()" class="btn-success">確認領獎</button>
-    </div>
+<!--    <div id="prize-form" style="display:none; background:white; padding:20px; border-radius:10px; text-align:center; margin-top:20px; max-width:80%;">-->
+<!--        <h3 id="prize-title" style="color:#e74c3c;">恭喜獲得 HK$30！</h3>-->
+<!--        <p>請輸入您的 FPS (轉數快) 識別碼或電話號碼以接收獎勵：</p>-->
+<!--        <input type="text" id="payment-info" placeholder="例: 12345678" style="width:100%; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:5px;">-->
+<!--        <button onclick="submitPrizeInfo()" class="btn-success">確認領獎</button>-->
+<!--    </div>-->
 
     <div id="final-msg" style="display:none; color:white; text-align:center; margin-top:20px;">
         <h2>感謝您的參與！</h2>
@@ -1089,16 +1181,16 @@
 
     // 2. 修改 initApp 中的检查逻辑
     async function initApp() {
-        // --- 新增：再次检查本地缓存 ---
-        const lastSubmitDate = localStorage.getItem('survey_last_submit_date');
-        const todayStr = getLocalTodayDate();
+<!--        // -&#45;&#45; 新增：再次检查本地缓存 -&#45;&#45;-->
+<!--        const lastSubmitDate = localStorage.getItem('survey_last_submit_date');-->
+<!--        const todayStr = getLocalTodayDate();-->
 
-        if (lastSubmitDate === todayStr) {
-            console.log("今日已提交，停止初始化。");
-            document.getElementById('submitted-mask').style.display = 'flex';
-            document.getElementById('sidebar').style.display = 'none';
-            return; // ⛔️ 直接终止后续代码（不加载配置，不加载地图）
-        }
+<!--        if (lastSubmitDate === todayStr) {-->
+<!--            console.log("今日已提交，停止初始化。");-->
+<!--            document.getElementById('submitted-mask').style.display = 'flex';-->
+<!--            document.getElementById('sidebar').style.display = 'none';-->
+<!--            return; // ⛔️ 直接终止后续代码（不加载配置，不加载地图）-->
+<!--        }-->
         // ---------------------------
 
         renderForm(); // 初始化表单
@@ -1115,27 +1207,27 @@
 
             // --- ✨ 每日限制检查逻辑 (修复时区版) ---
             // 确保开关开启
-            const isLimitEnabled = config.enabledDailyLimit === true || config.enabledDailyLimit === "true";
+<!--            const isLimitEnabled = config.enabledDailyLimit === true || config.enabledDailyLimit === "true";-->
 
-            if (isLimitEnabled) {
-                // 获取本地时间 (解决 UTC 时差问题)
-                const d = new Date();
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                const todayStr = `${year}-${month}-${day}`; // 格式：2026-01-16
+<!--            if (isLimitEnabled) {-->
+<!--                // 获取本地时间 (解决 UTC 时差问题)-->
+<!--                const d = new Date();-->
+<!--                const year = d.getFullYear();-->
+<!--                const month = String(d.getMonth() + 1).padStart(2, '0');-->
+<!--                const day = String(d.getDate()).padStart(2, '0');-->
+<!--                const todayStr = `${year}-${month}-${day}`; // 格式：2026-01-16-->
 
-                const lastSubmitDate = localStorage.getItem('survey_last_submit_date');
+<!--                const lastSubmitDate = localStorage.getItem('survey_last_submit_date');-->
 
-                console.log(`Limit Check: Today=${todayStr}, Last=${lastSubmitDate}`);
+<!--                console.log(`Limit Check: Today=${todayStr}, Last=${lastSubmitDate}`);-->
 
-                if (lastSubmitDate === todayStr) {
-                    // 如果记录的日期是今天，显示感谢层
-                    document.getElementById('submitted-mask').style.display = 'flex';
-                    document.body.style.overflow = 'hidden';
-                    return; // ⛔️ 停止加载
-                }
-            }
+<!--                if (lastSubmitDate === todayStr) {-->
+<!--                    // 如果记录的日期是今天，显示感谢层-->
+<!--                    document.getElementById('submitted-mask').style.display = 'flex';-->
+<!--                    document.body.style.overflow = 'hidden';-->
+<!--                    return; // ⛔️ 停止加载-->
+<!--                }-->
+<!--            }-->
             // ------------------------------------
 
             // 检查问卷是否开放
@@ -3128,6 +3220,166 @@
             alert("Error: " + result.error);
             btn.disabled = false; btn.innerText = "Retry";
         }
+        // ==========================================
+    // 🎰 抽奖逻辑 (已更新：5% $20, 10% $10)
+    // ==========================================
+
+    const spinBtn = document.getElementById('spin-btn');
+    const wheel = document.getElementById('wheel');
+    let hasSpun = false;
+
+    if(spinBtn && wheel) { // 確保元素存在
+        // ================== ✅ 新的抽奖逻辑 (修复指针偏移) ==================
+        spinBtn.addEventListener('click', () => {
+            if (hasSpun) return;
+            hasSpun = true;
+            spinBtn.disabled = true;
+            spinBtn.innerText = "抽獎中...";
+
+            // 1. 计算概率
+            const rand = Math.random() * 100; // 0 - 100
+            let prizeType = 'none';
+            let message = "";
+            let targetRangeMin = 0;
+            let targetRangeMax = 0;
+
+            // 定義扇區角度範圍 (指針在頂部為 0度)
+            // 扇區1 ($20): 0-60度
+            // 扇區3 ($10): 120-180度
+            // 扇區5 ($10): 240-300度
+            // 其他為謝謝
+
+            if (rand < 5) {
+                // --- 中 $20 (5%) ---
+                prizeType = '20';
+                message = "恭喜獲得 HK$20！";
+                // 目標扇區1 (0-60度)。为了避免压线，两边各留5度安全距离
+                targetRangeMin = 5;
+                targetRangeMax = 55;
+            } else if (rand < 15) {
+                // --- 中 $10 (10%) ---
+                prizeType = '10';
+                message = "恭喜獲得 HK$10！";
+                // 隨機選扇區3或5
+                if (Math.random() > 0.5) {
+                    targetRangeMin = 125; targetRangeMax = 175; // 扇區3
+                } else {
+                    targetRangeMin = 245; targetRangeMax = 295; // 扇區5
+                }
+            } else {
+                // --- 不中獎 (85%) ---
+                prizeType = 'none';
+                message = "感謝您的參與！";
+                // 隨機選扇區2, 4, 6
+                const section = Math.floor(Math.random() * 3);
+                if (section === 0) {      targetRangeMin = 65; targetRangeMax = 115; } // 扇區2
+                else if (section === 1) { targetRangeMin = 185; targetRangeMax = 235;} // 扇區4
+                else {                    targetRangeMin = 305; targetRangeMax = 355;} // 扇區6
+            }
+
+            // 2. 計算精確旋轉角度
+            // 在目標扇區範圍內隨機選一個角度
+            const randomAngleInSegment = Math.floor(Math.random() * (targetRangeMax - targetRangeMin + 1)) + targetRangeMin;
+
+            // 核心邏輯：為了讓這個角度轉到正上方(0度)，我們需要多轉幾圈(比如5圈=1800度)，然後減去目標角度。
+            // 這樣轉盤會停在準確的位置。
+            const finalRotation = 1800 + (360 - randomAngleInSegment);
+
+            wheel.style.transform = `rotate(${finalRotation}deg)`;
+
+            // 3. 动画结束后处理 (顯示結果)
+            setTimeout(() => {
+                document.querySelector('#final-msg h2').innerText = message;
+                document.getElementById('final-msg').style.display = 'block';
+                document.querySelector('.wheel-container').style.display = 'none';
+            }, 4100); // 比 CSS transition 時間稍長一點點
+        });
+        // =================================================================
+<!--        spinBtn.addEventListener('click', () => {-->
+<!--            if (hasSpun) return;-->
+<!--            hasSpun = true;-->
+<!--            spinBtn.disabled = true;-->
+
+<!--            // -&#45;&#45; 1. 计算概率 -&#45;&#45;-->
+<!--            const rand = Math.random() * 100; // 0 - 100-->
+<!--            let prizeType = 'none';-->
+<!--            let stopAngle = 0;-->
+<!--            let message = "";-->
+
+<!--            // 概率分布:-->
+<!--            // 0 ~ 5   (5%) : $20 (原$50位置)-->
+<!--            // 5 ~ 15  (10%): $10 (原$30位置)-->
+<!--            // 15 ~ 100(85%): 谢谢参与-->
+
+<!--            if (rand < 5) {-->
+<!--                // 中 $20 (对应扇区 1)-->
+<!--                prizeType = '20';-->
+<!--                stopAngle = 360 * 5 + (360 - 60); // 停在扇区1-->
+<!--                message = "恭喜獲得 HK$20！";-->
+<!--            } else if (rand < 15) {-->
+<!--                // 中 $10 (对应扇区 3 或 5)-->
+<!--                prizeType = '10';-->
+<!--                // 随机选扇区3(180度) 或 扇区5(60度)-->
+<!--                const sector = Math.random() > 0.5 ? 180 : 60;-->
+<!--                stopAngle = 360 * 5 + (360 - sector);-->
+<!--                message = "恭喜獲得 HK$10！";-->
+<!--            } else {-->
+<!--                // 不中奖 (对应扇区 2, 4, 6)-->
+<!--                prizeType = 'none';-->
+<!--                const sectors = [240, 120, 0];-->
+<!--                const sector = sectors[Math.floor(Math.random() * sectors.length)];-->
+<!--                stopAngle = 360 * 5 + (360 - sector);-->
+<!--            }-->
+
+<!--            // -&#45;&#45; 2. 执行动画 -&#45;&#45;-->
+<!--            // 增加随机偏移 (+/- 20度) 让指针指在扇区中间，更自然-->
+<!--            stopAngle += Math.floor(Math.random() * 40) - 20;-->
+
+<!--            wheel.style.transform = `rotate(${stopAngle}deg)`;-->
+
+            // --- 3. 动画结束后处理 ---
+<!--            setTimeout(() => {-->
+<!--                if (prizeType !== 'none') {-->
+<!--                    // 中奖了：显示填写信息框-->
+<!--                    document.getElementById('prize-title').innerText = message;-->
+<!--                    document.getElementById('prize-form').style.display = 'block';-->
+<!--                    document.querySelector('.wheel-container').style.display = 'none'; // 隐藏转盘-->
+<!--                    window.winningPrize = prizeType; // 暂存奖品金额-->
+<!--                } else {-->
+<!--                    // 没中奖：显示谢谢-->
+<!--                    document.getElementById('final-msg').style.display = 'block';-->
+<!--                    document.querySelector('.wheel-container').style.display = 'none';-->
+<!--                }-->
+<!--            }, 4000); // 4秒动画时间-->
+<!--            // -&#45;&#45; 3. 动画结束后处理 -&#45;&#45;-->
+<!--            setTimeout(() => {-->
+<!--                if (prizeType !== 'none') {-->
+<!--                    // -&#45;&#45; 中奖逻辑 (修改版：仅展示结果，不填表单) -&#45;&#45;-->
+
+<!--                    // 1. 修改结束画面的文字为中奖信息-->
+<!--                    document.querySelector('#final-msg h2').innerText = message; // 例如 "恭喜獲得 HK$10！"-->
+
+<!--                    // 2. 显示结束画面-->
+<!--                    document.getElementById('final-msg').style.display = 'block';-->
+
+<!--                    // 3. 隐藏转盘-->
+<!--                    document.querySelector('.wheel-container').style.display = 'none';-->
+
+<!--                    // ⬇️⬇️⬇️以此注释掉原本的“显示表单”逻辑 ⬇️⬇️⬇️-->
+<!--                    // document.getElementById('prize-title').innerText = message;-->
+<!--                    // document.getElementById('prize-form').style.display = 'block';-->
+<!--                    // document.querySelector('.wheel-container').style.display = 'none'; // 隐藏转盘-->
+<!--                    // window.winningPrize = prizeType; // 暂存奖品金额-->
+
+<!--                } else {-->
+<!--                    // 没中奖：显示谢谢 (保持不变)-->
+<!--                    document.querySelector('#final-msg h2').innerText = "感謝您的參與！"; // 确保文字正确-->
+<!--                    document.getElementById('final-msg').style.display = 'block';-->
+<!--                    document.querySelector('.wheel-container').style.display = 'none';-->
+<!--                }-->
+<!--            }, 4000); // 4秒动画时间-->
+<!--        });-->
+    }
 <!--        const btn = document.getElementById('btn-submit');-->
 <!--        const formData = {};-->
 
