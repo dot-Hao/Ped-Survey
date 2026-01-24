@@ -99,6 +99,12 @@
             background: white;
             transform: rotate(45deg); /* 反向旋轉，確保看起來是圓的 */
         }
+        /* 实时定位点样式：绿色且禁用点击交互 */
+        .user-location-marker {
+            background: #2ecc71 !important; /* 绿色 */
+            pointer-events: none !important; /* 禁止交互，防止干扰绘画 */
+            cursor: default !important;
+        }
 
         /* 類型區分：交通 (深藍色，更顯眼) */
         .marker-transport {
@@ -1085,6 +1091,15 @@
                 [114.22, 22.31]  // 東北角
             ]
         });
+
+        // 解决横竖屏切换或侧边栏变化导致的绘画偏移问题
+        const resizeObserver = new ResizeObserver(() => {
+            map.resize();
+        });
+        resizeObserver.observe(document.getElementById('map'));
+
+        // 添加导航控制
+        map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
         // --- 修改位置：在 map 初始化代码下方 (约 1000 行左右) ---
 
