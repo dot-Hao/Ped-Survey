@@ -2755,22 +2755,50 @@
         map.on('mouseup', () => { isDrawing = false; });
 
         // 触摸支持
+<!--        map.getCanvas().addEventListener('touchstart', (e) => {-->
+<!--            if (!drawMode || isPaused) return;-->
+<!--            e.preventDefault();-->
+<!--            isDrawing = true;-->
+<!--            const loc = map.unproject([e.touches[0].clientX, e.touches[0].clientY]);-->
+<!--            handleMove(loc);-->
+<!--        }, {passive:false});-->
+
         map.getCanvas().addEventListener('touchstart', (e) => {
             if (!drawMode || isPaused) return;
             e.preventDefault();
             isDrawing = true;
-            const loc = map.unproject([e.touches[0].clientX, e.touches[0].clientY]);
+
+            // 获取地图画布相对于窗口的偏移量
+            const rect = map.getCanvas().getBoundingClientRect();
+            // 减去偏移量，得到相对于地图内部的坐标
+            const x = e.touches[0].clientX - rect.left;
+            const y = e.touches[0].clientY - rect.top;
+
+            const loc = map.unproject([x, y]);
             handleMove(loc);
         }, {passive:false});
+
+<!--        map.getCanvas().addEventListener('touchmove', (e) => {-->
+<!--            if (!drawMode || isPaused) return;-->
+<!--            e.preventDefault();-->
+<!--            const loc = map.unproject([e.touches[0].clientX, e.touches[0].clientY]);-->
+<!--            handleMove(loc);-->
+<!--        }, {passive:false});-->
 
         map.getCanvas().addEventListener('touchmove', (e) => {
             if (!drawMode || isPaused) return;
             e.preventDefault();
-            const loc = map.unproject([e.touches[0].clientX, e.touches[0].clientY]);
+
+            const rect = map.getCanvas().getBoundingClientRect();
+            const x = e.touches[0].clientX - rect.left;
+            const y = e.touches[0].clientY - rect.top;
+
+            const loc = map.unproject([x, y]);
             handleMove(loc);
         }, {passive:false});
 
         map.getCanvas().addEventListener('touchend', () => { isDrawing = false; });
+
 
         function updateStatusText() {
             statusBar.innerText = currentLang === 'en'
@@ -3015,6 +3043,19 @@
         });
         // =================================================================
     }
+    });
+    // 监听屏幕旋转或窗口大小变化
+    window.addEventListener('resize', () => {
+        if (map) {
+            map.resize();
+        }
+    });
+
+    // 针对移动端旋转的特殊处理
+    window.addEventListener("orientationchange", () => {
+        setTimeout(() => {
+            map.resize();
+        }, 300); // 延迟 300ms 等待浏览器布局刷新完成
     });
 </script>
 </body>
